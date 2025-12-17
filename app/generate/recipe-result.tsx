@@ -56,6 +56,12 @@ export default function RecipeResult({
 
     setIsSaving(true);
     try {
+      // Combine ingredients from both "have" and "to buy" lists
+      const allIngredients = [
+        ...inputs.ingredientsHave,
+        ...(inputs.ingredientsToBuy || []),
+      ];
+
       await saveRecipe({
         title: recipe.title,
         description: recipe.summary,
@@ -64,7 +70,7 @@ export default function RecipeResult({
           dietaryPreferences: inputs.diet,
           allergens: inputs.allergies,
           country: inputs.country,
-          ingredients: inputs.ingredients,
+          ingredients: allIngredients,
           servings: inputs.servings,
           maxTime: inputs.timeLimit,
         },

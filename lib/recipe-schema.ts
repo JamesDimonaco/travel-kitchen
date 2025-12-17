@@ -17,22 +17,37 @@ export const LIMITATION_OPTIONS = [
   { id: "no_fridge", label: "No fridge access" },
 ] as const;
 
-// Diet options
+// Diet options - expanded
 export const DIET_OPTIONS = [
   { id: "vegetarian", label: "Vegetarian" },
   { id: "vegan", label: "Vegan" },
+  { id: "pescatarian", label: "Pescatarian" },
   { id: "halal", label: "Halal" },
   { id: "kosher", label: "Kosher" },
+  { id: "keto", label: "Keto" },
+  { id: "low_carb", label: "Low Carb" },
+  { id: "dairy_free", label: "Dairy Free" },
+  { id: "gluten_free", label: "Gluten Free" },
 ] as const;
 
-// Allergy options
+// Allergy options - expanded
 export const ALLERGY_OPTIONS = [
-  { id: "nuts", label: "Nuts" },
+  { id: "nuts", label: "Tree Nuts" },
+  { id: "peanuts", label: "Peanuts" },
   { id: "dairy", label: "Dairy" },
   { id: "gluten", label: "Gluten" },
+  { id: "wheat", label: "Wheat" },
   { id: "seafood", label: "Seafood" },
+  { id: "shellfish", label: "Shellfish" },
+  { id: "fish", label: "Fish" },
   { id: "eggs", label: "Eggs" },
   { id: "soy", label: "Soy" },
+  { id: "sesame", label: "Sesame" },
+  { id: "mustard", label: "Mustard" },
+  { id: "celery", label: "Celery" },
+  { id: "lupin", label: "Lupin" },
+  { id: "molluscs", label: "Molluscs" },
+  { id: "sulphites", label: "Sulphites" },
 ] as const;
 
 // Quick staples for easy adding
@@ -48,12 +63,26 @@ export const QUICK_STAPLES = [
   "pepper",
 ] as const;
 
-// Time options
+// Quick items to buy suggestions
+export const QUICK_TO_BUY = [
+  "tomatoes",
+  "chicken",
+  "tofu",
+  "cheese",
+  "bread",
+  "vegetables",
+  "herbs",
+  "lemon",
+  "butter",
+] as const;
+
+// Time options - added 60 min
 export const TIME_OPTIONS = [
   { value: 10, label: "10 min" },
   { value: 20, label: "20 min" },
   { value: 30, label: "30 min" },
   { value: 45, label: "45 min" },
+  { value: 60, label: "60 min" },
 ] as const;
 
 // Preference options
@@ -63,9 +92,11 @@ export const PREFERENCE_OPTIONS = [
   { id: "high_protein", label: "High Protein" },
   { id: "comfort", label: "Comfort Food" },
   { id: "fresh", label: "Fresh & Light" },
+  { id: "quick", label: "Quick & Easy" },
+  { id: "filling", label: "Filling" },
 ] as const;
 
-// Form input schema
+// Form input schema - updated
 export const recipeFormSchema = z.object({
   equipment: z.array(z.string()).min(1, "Select at least one equipment"),
   limitations: z.array(z.string()).optional(),
@@ -74,8 +105,10 @@ export const recipeFormSchema = z.object({
   allergies: z.array(z.string()).optional(),
   servings: z.number().min(1).max(6).default(2),
   timeLimit: z.number().min(10).max(60).default(30),
-  ingredients: z.array(z.string()).min(1, "Add at least one ingredient"),
+  ingredientsHave: z.array(z.string()),
+  ingredientsToBuy: z.array(z.string()).optional(),
   preferences: z.array(z.string()).optional(),
+  notes: z.string().optional(),
 });
 
 export type RecipeFormData = z.infer<typeof recipeFormSchema>;

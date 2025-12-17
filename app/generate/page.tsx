@@ -16,6 +16,8 @@ import {
   ArrowLeft,
   Clock,
   Users,
+  ShoppingCart,
+  MessageSquare,
 } from "lucide-react";
 import {
   EQUIPMENT_OPTIONS,
@@ -23,6 +25,7 @@ import {
   DIET_OPTIONS,
   ALLERGY_OPTIONS,
   QUICK_STAPLES,
+  QUICK_TO_BUY,
   TIME_OPTIONS,
   PREFERENCE_OPTIONS,
   type RecipeFormData,
@@ -41,9 +44,12 @@ export default function GeneratePage() {
   const [allergies, setAllergies] = useState<string[]>([]);
   const [servings, setServings] = useState(2);
   const [timeLimit, setTimeLimit] = useState(30);
-  const [ingredients, setIngredients] = useState<string[]>([]);
-  const [ingredientInput, setIngredientInput] = useState("");
+  const [ingredientsHave, setIngredientsHave] = useState<string[]>([]);
+  const [ingredientHaveInput, setIngredientHaveInput] = useState("");
+  const [ingredientsToBuy, setIngredientsToBuy] = useState<string[]>([]);
+  const [ingredientToBuyInput, setIngredientToBuyInput] = useState("");
   const [preferences, setPreferences] = useState<string[]>([]);
+  const [notes, setNotes] = useState("");
 
   // Generation state
   const [isGenerating, setIsGenerating] = useState(false);
@@ -62,16 +68,28 @@ export default function GeneratePage() {
     }
   };
 
-  const addIngredient = (ingredient: string) => {
+  const addIngredientHave = (ingredient: string) => {
     const trimmed = ingredient.trim().toLowerCase();
-    if (trimmed && !ingredients.includes(trimmed)) {
-      setIngredients([...ingredients, trimmed]);
+    if (trimmed && !ingredientsHave.includes(trimmed)) {
+      setIngredientsHave([...ingredientsHave, trimmed]);
     }
-    setIngredientInput("");
+    setIngredientHaveInput("");
   };
 
-  const removeIngredient = (ingredient: string) => {
-    setIngredients(ingredients.filter((i) => i !== ingredient));
+  const removeIngredientHave = (ingredient: string) => {
+    setIngredientsHave(ingredientsHave.filter((i) => i !== ingredient));
+  };
+
+  const addIngredientToBuy = (ingredient: string) => {
+    const trimmed = ingredient.trim().toLowerCase();
+    if (trimmed && !ingredientsToBuy.includes(trimmed)) {
+      setIngredientsToBuy([...ingredientsToBuy, trimmed]);
+    }
+    setIngredientToBuyInput("");
+  };
+
+  const removeIngredientToBuy = (ingredient: string) => {
+    setIngredientsToBuy(ingredientsToBuy.filter((i) => i !== ingredient));
   };
 
   const handleGenerate = async () => {
@@ -85,8 +103,8 @@ export default function GeneratePage() {
       return;
     }
 
-    if (ingredients.length === 0) {
-      toast.error("Please add at least one ingredient");
+    if (ingredientsHave.length === 0 && ingredientsToBuy.length === 0) {
+      toast.error("Please add at least one ingredient you have or plan to buy");
       return;
     }
 
@@ -98,8 +116,10 @@ export default function GeneratePage() {
       allergies: allergies.length > 0 ? allergies : undefined,
       servings,
       timeLimit,
-      ingredients,
+      ingredientsHave,
+      ingredientsToBuy: ingredientsToBuy.length > 0 ? ingredientsToBuy : undefined,
       preferences: preferences.length > 0 ? preferences : undefined,
+      notes: notes.trim() || undefined,
     };
 
     setIsGenerating(true);
@@ -347,7 +367,7 @@ export default function GeneratePage() {
             </div>
           </section>
 
-          {/* Ingredients Section */}
+          {/* Ingredients I Have Section */}
           <section className="bg-background rounded-lg border p-6">
             <h2 className="font-semibold text-lg mb-4">
               What ingredients do you have?
@@ -357,20 +377,20 @@ export default function GeneratePage() {
             <div className="flex gap-2 mb-4">
               <Input
                 placeholder="Type an ingredient..."
-                value={ingredientInput}
-                onChange={(e) => setIngredientInput(e.target.value)}
+                value={ingredientHaveInput}
+                onChange={(e) => setIngredientHaveInput(e.target.value)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter") {
                     e.preventDefault();
-                    addIngredient(ingredientInput);
+                    addIngredientHave(ingredientHaveInput);
                   }
                 }}
               />
               <Button
                 type="button"
                 variant="outline"
-                onClick={() => addIngredient(ingredientInput)}
-                disabled={!ingredientInput.trim()}
+                onClick={() => addIngredientHave(ingredientHaveInput)}
+                disabled={!ingredientHaveInput.trim()}
               >
                 <Plus className="h-4 w-4" />
               </Button>
@@ -384,10 +404,10 @@ export default function GeneratePage() {
                   <button
                     key={staple}
                     type="button"
-                    onClick={() => addIngredient(staple)}
-                    disabled={ingredients.includes(staple)}
+                    onClick={() => addIngredientHave(staple)}
+                    disabled={ingredientsHave.includes(staple)}
                     className={`px-2 py-1 text-xs rounded border transition-colors ${
-                      ingredients.includes(staple)
+                      ingredientsHave.includes(staple)
                         ? "bg-muted text-muted-foreground cursor-not-allowed"
                         : "hover:bg-muted"
                     }`}
@@ -399,13 +419,13 @@ export default function GeneratePage() {
             </div>
 
             {/* Selected ingredients */}
-            {ingredients.length > 0 && (
+            {ingredientsHave.length > 0 && (
               <div>
                 <p className="text-sm text-muted-foreground mb-2">
                   Your ingredients:
                 </p>
                 <div className="flex flex-wrap gap-2">
-                  {ingredients.map((ing) => (
+                  {ingredientsHave.map((ing) => (
                     <span
                       key={ing}
                       className="inline-flex items-center gap-1 px-3 py-1 bg-primary/10 text-primary rounded-full text-sm"
@@ -413,8 +433,92 @@ export default function GeneratePage() {
                       {ing}
                       <button
                         type="button"
-                        onClick={() => removeIngredient(ing)}
+                        onClick={() => removeIngredientHave(ing)}
                         className="hover:bg-primary/20 rounded-full p-0.5"
+                      >
+                        <X className="h-3 w-3" />
+                      </button>
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </section>
+
+          {/* Ingredients To Buy Section */}
+          <section className="bg-background rounded-lg border p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <ShoppingCart className="h-5 w-5" />
+              <h2 className="font-semibold text-lg">
+                What do you plan to buy?
+              </h2>
+            </div>
+            <p className="text-sm text-muted-foreground mb-4">
+              Add ingredients you&apos;re willing to shop for
+            </p>
+
+            {/* Input */}
+            <div className="flex gap-2 mb-4">
+              <Input
+                placeholder="Type an ingredient..."
+                value={ingredientToBuyInput}
+                onChange={(e) => setIngredientToBuyInput(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    addIngredientToBuy(ingredientToBuyInput);
+                  }
+                }}
+              />
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => addIngredientToBuy(ingredientToBuyInput)}
+                disabled={!ingredientToBuyInput.trim()}
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+
+            {/* Quick suggestions */}
+            <div className="mb-4">
+              <p className="text-sm text-muted-foreground mb-2">Suggestions:</p>
+              <div className="flex flex-wrap gap-2">
+                {QUICK_TO_BUY.map((item) => (
+                  <button
+                    key={item}
+                    type="button"
+                    onClick={() => addIngredientToBuy(item)}
+                    disabled={ingredientsToBuy.includes(item)}
+                    className={`px-2 py-1 text-xs rounded border transition-colors ${
+                      ingredientsToBuy.includes(item)
+                        ? "bg-muted text-muted-foreground cursor-not-allowed"
+                        : "hover:bg-muted"
+                    }`}
+                  >
+                    + {item}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Selected ingredients to buy */}
+            {ingredientsToBuy.length > 0 && (
+              <div>
+                <p className="text-sm text-muted-foreground mb-2">
+                  Shopping list:
+                </p>
+                <div className="flex flex-wrap gap-2">
+                  {ingredientsToBuy.map((ing) => (
+                    <span
+                      key={ing}
+                      className="inline-flex items-center gap-1 px-3 py-1 bg-orange-100 text-orange-700 dark:bg-orange-900/30 dark:text-orange-300 rounded-full text-sm"
+                    >
+                      {ing}
+                      <button
+                        type="button"
+                        onClick={() => removeIngredientToBuy(ing)}
+                        className="hover:bg-orange-200 dark:hover:bg-orange-800 rounded-full p-0.5"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -450,6 +554,25 @@ export default function GeneratePage() {
             </div>
           </section>
 
+          {/* Notes Section */}
+          <section className="bg-background rounded-lg border p-6">
+            <div className="flex items-center gap-2 mb-4">
+              <MessageSquare className="h-5 w-5" />
+              <h2 className="font-semibold text-lg">
+                Any special requests? (optional)
+              </h2>
+            </div>
+            <p className="text-sm text-muted-foreground mb-3">
+              Describe what you&apos;re craving or any specific dish ideas
+            </p>
+            <textarea
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              placeholder="e.g., I want something like a stir fry with a spicy sauce, or a creamy pasta dish..."
+              className="w-full min-h-[100px] px-3 py-2 text-sm rounded-md border border-input bg-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring resize-y"
+            />
+          </section>
+
           {/* Generate Button */}
           <div className="sticky bottom-4 bg-background/95 backdrop-blur rounded-lg border p-4 shadow-lg">
             {!session && !sessionPending && (
@@ -466,7 +589,7 @@ export default function GeneratePage() {
                 isGenerating ||
                 !session ||
                 equipment.length === 0 ||
-                ingredients.length === 0
+                (ingredientsHave.length === 0 && ingredientsToBuy.length === 0)
               }
               className="w-full"
               size="lg"

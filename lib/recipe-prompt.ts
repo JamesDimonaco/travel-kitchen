@@ -14,6 +14,7 @@ HARD RULES
 - Avoid "Western specialty" ingredients unless the user listed them.
 - Include food safety notes only when relevant (e.g., chicken).
 - If key info is missing (e.g., servings), assume 1–2 servings and state the assumption.
+- Pay close attention to the user's notes/preferences - they describe what kind of dish they want.
 
 OUTPUT FORMAT (STRICT)
 Return ONLY valid JSON matching this schema. No markdown, no extra text, no code blocks.
@@ -75,7 +76,17 @@ export function buildUserPrompt(data: RecipeFormData): string {
       ? data.preferences.join(", ")
       : "none specified";
 
-  return `Create one recipe with these constraints:
+  const ingredientsHave =
+    data.ingredientsHave.length > 0
+      ? data.ingredientsHave.join(", ")
+      : "nothing specific";
+
+  const ingredientsToBuy =
+    data.ingredientsToBuy && data.ingredientsToBuy.length > 0
+      ? data.ingredientsToBuy.join(", ")
+      : "open to suggestions";
+
+  let prompt = `Create one recipe with these constraints:
 
 Equipment available: [${equipmentList}, ${unavailableEquipment}]
 Kitchen limitations: [${limitations}]
@@ -83,8 +94,20 @@ Country/region: [${data.country || "not specified"}]
 Dietary requirements/allergies: [${dietReqs.length > 0 ? dietReqs.join(", ") : "none"}]
 Time limit: [${data.timeLimit} minutes]
 Servings: [${data.servings}]
-Ingredients I have: [${data.ingredients.join(", ")}]
-Preferences: [${preferences}]
+Ingredients I already have: [${ingredientsHave}]
+Ingredients I'm willing to buy: [${ingredientsToBuy}]
+Taste preferences: [${preferences}]`;
+
+  if (data.notes && data.notes.trim()) {
+    prompt += `
+
+User notes/special requests: "${data.notes.trim()}"
+Please pay special attention to these notes when designing the recipe.`;
+  }
+
+  prompt += `
 
 Make it realistic to shop locally. If an ingredient might be hard to find, add substitutions.`;
+
+  return prompt;
 }
