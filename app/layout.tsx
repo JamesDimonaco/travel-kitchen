@@ -19,7 +19,7 @@ export const metadata: Metadata = {
   title: "Traveler's Kitchen",
   description: "Simple recipes for travelers with limited kitchens",
   icons: {
-    icon: "/convex.svg",
+    icon: "/icon.svg",
   },
 };
 

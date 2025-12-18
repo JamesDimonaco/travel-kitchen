@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { signOut, useSession } from "@/lib/auth-client";
 import { ChefHat, UtensilsCrossed, Globe, Clock, Loader2 } from "lucide-react";
@@ -90,7 +91,7 @@ function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
           Generate simple, realistic recipes based on your available equipment.
           Perfect for hostels, guesthouses, and basic rental kitchens.
         </p>
-        <div className="flex gap-4 justify-center">
+        <div className="flex gap-4 justify-center mb-12">
           {isLoggedIn ? (
             <Link href="/generate">
               <Button size="lg" className="gap-2">
@@ -110,6 +111,19 @@ function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
               </Link>
             </>
           )}
+        </div>
+
+        <div className="relative max-w-4xl mx-auto">
+          <div className="rounded-xl overflow-hidden shadow-2xl border">
+            <Image
+              src="/travelers-kitchen-hostel-cooking.jpg"
+              alt="Travelers cooking together in a hostel kitchen"
+              width={1200}
+              height={800}
+              className="w-full h-auto"
+              priority
+            />
+          </div>
         </div>
       </div>
     </section>
