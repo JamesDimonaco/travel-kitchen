@@ -18,6 +18,7 @@ import {
   Lock,
 } from "lucide-react";
 import type { Id } from "@/convex/_generated/dataModel";
+import { RecipeSchema, BreadcrumbSchema } from "@/components/seo/structured-data";
 
 export default function RecipePage() {
   const params = useParams();
@@ -49,31 +50,46 @@ export default function RecipePage() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      {/* Header */}
-      <header className="border-b bg-background sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-14 flex items-center justify-between">
-          <button
-            onClick={() => router.back()}
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span className="text-sm">Back</span>
-          </button>
+    <>
+      {/* Structured Data for SEO */}
+      {recipe.isPublished && (
+        <>
+          <RecipeSchema recipe={recipe} recipeId={recipeId} />
+          <BreadcrumbSchema
+            items={[
+              { name: "Home", url: "https://www.travelkitchen.app" },
+              { name: "Marketplace", url: "https://www.travelkitchen.app/marketplace" },
+              { name: recipe.title, url: `https://www.travelkitchen.app/recipe/${recipeId}` },
+            ]}
+          />
+        </>
+      )}
 
-          {recipe.isPublished ? (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">
-              <Globe className="h-3 w-3" />
-              Public
-            </span>
-          ) : (
-            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">
-              <Lock className="h-3 w-3" />
-              Private
-            </span>
-          )}
-        </div>
-      </header>
+      <div className="min-h-screen bg-muted/30">
+        {/* Header */}
+        <header className="border-b bg-background sticky top-0 z-50">
+          <div className="container mx-auto px-4 h-14 flex items-center justify-between">
+            <button
+              onClick={() => router.back()}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
+            >
+              <ArrowLeft className="h-4 w-4" />
+              <span className="text-sm">Back</span>
+            </button>
+
+            {recipe.isPublished ? (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">
+                <Globe className="h-3 w-3" />
+                Public
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">
+                <Lock className="h-3 w-3" />
+                Private
+              </span>
+            )}
+          </div>
+        </header>
 
       <main className="container mx-auto px-4 py-8 max-w-2xl">
         {/* Title Section */}
@@ -220,7 +236,8 @@ export default function RecipePage() {
             </ul>
           </div>
         )}
-      </main>
-    </div>
+        </main>
+      </div>
+    </>
   );
 }

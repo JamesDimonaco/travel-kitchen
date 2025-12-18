@@ -11,6 +11,7 @@ import RecipeIdeasForm, { type IdeasFormData } from "./recipe-ideas-form";
 import RecipeIdeaCard, { type RecipeIdea } from "./recipe-idea-card";
 import RecipeIdeaDialog from "./recipe-idea-dialog";
 import type { Id } from "@/convex/_generated/dataModel";
+import { track, ANALYTICS_EVENTS } from "@/lib/analytics";
 
 interface FullRecipe {
   shopping: {
@@ -88,8 +89,10 @@ export default function MultipleOptions() {
         ideas,
       });
 
+      track(ANALYTICS_EVENTS.IDEAS_GENERATED, { count: ideas.length });
       toast.success(`Generated ${ideas.length} recipe ideas!`);
     } catch (error) {
+      track(ANALYTICS_EVENTS.IDEAS_GENERATION_FAILED);
       toast.error(
         error instanceof Error ? error.message : "Failed to generate ideas"
       );
@@ -130,8 +133,10 @@ export default function MultipleOptions() {
       });
 
       setMoreContext("");
+      track(ANALYTICS_EVENTS.MORE_IDEAS_REQUESTED, { count: ideas.length });
       toast.success(`Generated ${ideas.length} more ideas!`);
     } catch (error) {
+      track(ANALYTICS_EVENTS.IDEAS_GENERATION_FAILED);
       toast.error(
         error instanceof Error ? error.message : "Failed to generate ideas"
       );
@@ -148,6 +153,7 @@ export default function MultipleOptions() {
       await clearSession({ sessionId });
       setSessionId(null);
       setSessionInputs(null);
+      track(ANALYTICS_EVENTS.IDEA_SESSION_CLEARED);
       toast.success("Session cleared");
     } catch (error) {
       toast.error("Failed to clear session");

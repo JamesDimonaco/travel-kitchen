@@ -1,0 +1,66 @@
+{
+  "name": "Traveler's Kitchen",
+  "short_name": "TravelKitchen",
+  "description": "Generate simple, realistic recipes for travelers cooking with limited equipment. Perfect for hostels, Airbnbs, and basic rental kitchens.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#0a0a0a",
+  "orientation": "portrait-primary",
+  "scope": "/",
+  "lang": "en",
+  "categories": ["food", "lifestyle", "utilities"],
+  "icons": [
+    {
+      "src": "/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "screenshots": [
+    {
+      "src": "/screenshots/home.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Home page"
+    },
+    {
+      "src": "/screenshots/generate.png",
+      "sizes": "1280x720",
+      "type": "image/png",
+      "form_factor": "wide",
+      "label": "Generate recipe page"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Generate Recipe",
+      "short_name": "Generate",
+      "description": "Create a new recipe",
+      "url": "/generate",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "My Recipes",
+      "short_name": "Recipes",
+      "description": "View your saved recipes",
+      "url": "/my-recipes",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    },
+    {
+      "name": "Marketplace",
+      "short_name": "Browse",
+      "description": "Browse community recipes",
+      "url": "/marketplace",
+      "icons": [{ "src": "/icon-192x192.png", "sizes": "192x192" }]
+    }
+  ]
+}

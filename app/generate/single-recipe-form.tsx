@@ -30,6 +30,7 @@ import {
   type RecipeResponse,
 } from "@/lib/recipe-schema";
 import RecipeResult from "./recipe-result";
+import { track, ANALYTICS_EVENTS } from "@/lib/analytics";
 
 interface SingleRecipeFormProps {
   isAuthenticated: boolean;
@@ -144,8 +145,16 @@ export default function SingleRecipeForm({
 
       setRecipe(data.recipe);
       setFormInputs(data.inputs);
+      track(ANALYTICS_EVENTS.RECIPE_GENERATED, {
+        equipment: equipment.length,
+        hasCountry: !!country,
+        hasDiet: diet.length > 0,
+        timeLimit,
+        servings,
+      });
       toast.success("Recipe generated!");
     } catch (error) {
+      track(ANALYTICS_EVENTS.RECIPE_GENERATION_FAILED);
       toast.error(
         error instanceof Error ? error.message : "Failed to generate recipe"
       );

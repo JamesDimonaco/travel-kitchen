@@ -14,6 +14,7 @@ import {
   Bot,
 } from "lucide-react";
 import type { RecipeResponse, RecipeFormData } from "@/lib/recipe-schema";
+import { track, ANALYTICS_EVENTS } from "@/lib/analytics";
 
 interface Message {
   id: string;
@@ -61,6 +62,7 @@ export default function RecipeChat({
     setMessages((prev) => [...prev, userMessage]);
     setInput("");
     setIsLoading(true);
+    track(ANALYTICS_EVENTS.RECIPE_CHAT_MESSAGE_SENT);
 
     try {
       const response = await fetch("/api/ai/recipe-chat", {
@@ -152,6 +154,7 @@ export default function RecipeChat({
       }
 
       const data = await response.json();
+      track(ANALYTICS_EVENTS.RECIPE_UPDATED_VIA_CHAT);
       onRecipeUpdate(data.recipe);
     } catch (error) {
       console.error("Failed to update recipe:", error);

@@ -17,6 +17,7 @@ import { signIn } from "@/lib/auth-client";
 import Link from "next/link";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
+import { track, identifyUser, ANALYTICS_EVENTS } from "@/lib/analytics";
 
 export default function SignIn() {
   const [email, setEmail] = useState("");
@@ -97,7 +98,9 @@ export default function SignIn() {
                   onError: (ctx) => {
                     toast.error(ctx.error.message);
                   },
-                  onSuccess: () => {
+                  onSuccess: (ctx) => {
+                    identifyUser(ctx.data.user.id, { email });
+                    track(ANALYTICS_EVENTS.USER_SIGNED_IN);
                     router.push("/");
                   },
                 }

@@ -12,6 +12,7 @@ import {
   Loader2,
   Globe,
 } from "lucide-react";
+import { CollectionPageSchema } from "@/components/seo/structured-data";
 
 export default function MarketplacePage() {
   const recipes = useQuery(api.recipes.listPublishedRecipes);
@@ -25,9 +26,16 @@ export default function MarketplacePage() {
   }
 
   return (
-    <div className="min-h-screen bg-muted/30">
-      {/* Header */}
-      <header className="border-b bg-background sticky top-0 z-50">
+    <>
+      <CollectionPageSchema
+        name="Recipe Marketplace - Community Recipes"
+        description="Browse and discover travel-friendly recipes shared by the community. Find simple, practical recipes for cooking in hostels, Airbnbs, and limited kitchens."
+        url="https://www.travelkitchen.app/marketplace"
+        itemCount={recipes?.length || 0}
+      />
+      <div className="min-h-screen bg-muted/30">
+        {/* Header */}
+        <header className="border-b bg-background sticky top-0 z-50">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
           <Link
             href="/"
@@ -100,6 +108,7 @@ export default function MarketplacePage() {
           </div>
         )}
       </main>
-    </div>
+      </div>
+    </>
   );
 }

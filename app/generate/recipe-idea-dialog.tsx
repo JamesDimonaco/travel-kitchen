@@ -26,6 +26,7 @@ import {
 import type { RecipeIdea } from "./recipe-idea-card";
 import type { IdeasFormData } from "./recipe-ideas-form";
 import type { Id } from "@/convex/_generated/dataModel";
+import { track, ANALYTICS_EVENTS } from "@/lib/analytics";
 
 interface FullRecipe {
   shopping: {
@@ -107,6 +108,7 @@ export default function RecipeIdeaDialog({
       });
 
       onRecipeGenerated(idea._id, data.fullRecipe);
+      track(ANALYTICS_EVENTS.IDEA_EXPANDED, { title: idea.title });
       toast.success("Recipe generated!");
     } catch (error) {
       toast.error("Failed to generate recipe");

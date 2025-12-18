@@ -5,19 +5,53 @@ import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { signOut, useSession } from "@/lib/auth-client";
 import { ChefHat, UtensilsCrossed, Globe, Clock, Loader2 } from "lucide-react";
+import { track, resetUser, ANALYTICS_EVENTS } from "@/lib/analytics";
+import { FAQSchema } from "@/components/seo/structured-data";
+
+const faqs = [
+  {
+    question: "What equipment do I need to use Traveler's Kitchen?",
+    answer:
+      "Traveler's Kitchen works with whatever you have! Whether it's just a kettle, a microwave, a stovetop, or a full kitchen, our AI generates recipes that work with your available equipment.",
+  },
+  {
+    question: "Can I cook real meals in a hostel kitchen?",
+    answer:
+      "Absolutely! Our recipes are specifically designed for limited kitchens like hostels, Airbnbs, and guesthouses. We focus on simple techniques and commonly available ingredients.",
+  },
+  {
+    question: "How does the recipe generator work?",
+    answer:
+      "Simply tell us what equipment you have, any dietary requirements, and what ingredients you'd like to use. Our AI will generate a complete recipe with shopping list, prep instructions, and step-by-step cooking guide.",
+  },
+  {
+    question: "Are the recipes suitable for beginners?",
+    answer:
+      "Yes! All recipes are designed to be simple and straightforward with clear instructions. No fancy techniques required - just good food that anyone can make.",
+  },
+  {
+    question: "Can I save and share my recipes?",
+    answer:
+      "Yes! Create a free account to save your favorite recipes, publish them to the community marketplace, and access them from anywhere during your travels.",
+  },
+];
 
 export default function Home() {
   const { data: session, isPending } = useSession();
 
   return (
-    <div className="min-h-screen flex flex-col">
-      <Header session={session} isPending={isPending} />
-      <main className="flex-1">
-        <HeroSection isLoggedIn={!!session} />
-        <FeaturesSection />
-      </main>
-      <Footer />
-    </div>
+    <>
+      <FAQSchema faqs={faqs} />
+      <div className="min-h-screen flex flex-col">
+        <Header session={session} isPending={isPending} />
+        <main className="flex-1">
+          <HeroSection isLoggedIn={!!session} />
+          <FeaturesSection />
+          <FAQSection />
+        </main>
+        <Footer />
+      </div>
+    </>
   );
 }
 
@@ -56,7 +90,15 @@ function Header({
                   Marketplace
                 </Button>
               </Link>
-              <Button variant="outline" size="sm" onClick={() => signOut()}>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => {
+                  track(ANALYTICS_EVENTS.USER_SIGNED_OUT);
+                  resetUser();
+                  signOut();
+                }}
+              >
                 Sign Out
               </Button>
             </>
@@ -165,6 +207,26 @@ function FeaturesSection() {
               <feature.icon className="h-10 w-10 mb-4 text-primary" />
               <h3 className="font-semibold text-lg mb-2">{feature.title}</h3>
               <p className="text-muted-foreground">{feature.description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+function FAQSection() {
+  return (
+    <section className="py-20">
+      <div className="container mx-auto px-4 max-w-3xl">
+        <h2 className="text-3xl font-bold text-center mb-12">
+          Frequently Asked Questions
+        </h2>
+        <div className="space-y-6">
+          {faqs.map((faq, index) => (
+            <div key={index} className="border-b pb-6 last:border-0">
+              <h3 className="font-semibold text-lg mb-2">{faq.question}</h3>
+              <p className="text-muted-foreground">{faq.answer}</p>
             </div>
           ))}
         </div>

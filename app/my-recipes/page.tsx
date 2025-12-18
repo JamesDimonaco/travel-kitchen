@@ -20,6 +20,7 @@ import {
   ArrowLeft,
 } from "lucide-react";
 import type { Id } from "@/convex/_generated/dataModel";
+import { track, ANALYTICS_EVENTS } from "@/lib/analytics";
 
 export default function MyRecipesPage() {
   const { data: session, isPending: isSessionPending } = useSession();
@@ -41,6 +42,11 @@ export default function MyRecipesPage() {
     setTogglingId(id);
     try {
       await togglePublish({ id });
+      track(
+        isPublished
+          ? ANALYTICS_EVENTS.RECIPE_UNPUBLISHED
+          : ANALYTICS_EVENTS.RECIPE_PUBLISHED
+      );
       toast.success(isPublished ? "Recipe unpublished" : "Recipe published!");
     } catch (error) {
       toast.error("Failed to update recipe");
@@ -56,6 +62,7 @@ export default function MyRecipesPage() {
     setDeletingId(id);
     try {
       await deleteRecipe({ id });
+      track(ANALYTICS_EVENTS.RECIPE_DELETED);
       toast.success("Recipe deleted");
     } catch (error) {
       toast.error("Failed to delete recipe");

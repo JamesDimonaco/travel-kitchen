@@ -27,6 +27,12 @@ export const getSessionIdeas = query({
     const user = await authComponent.getAuthUser(ctx);
     if (!user) return [];
 
+    // Verify session belongs to the current user
+    const session = await ctx.db.get(args.sessionId);
+    if (!session || session.userId !== user._id) {
+      return [];
+    }
+
     return await ctx.db
       .query("recipeIdeas")
       .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))

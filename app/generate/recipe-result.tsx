@@ -19,6 +19,7 @@ import {
 } from "lucide-react";
 import type { RecipeResponse, RecipeFormData } from "@/lib/recipe-schema";
 import RecipeChat from "./recipe-chat";
+import { track, ANALYTICS_EVENTS } from "@/lib/analytics";
 
 interface RecipeResultProps {
   recipe: RecipeResponse;
@@ -100,8 +101,10 @@ export default function RecipeResult({
       });
 
       setIsSaved(true);
+      track(ANALYTICS_EVENTS.RECIPE_SAVED, { title: recipe.title });
       toast.success("Recipe saved!");
     } catch (error) {
+      track(ANALYTICS_EVENTS.RECIPE_SAVE_FAILED);
       toast.error("Failed to save recipe");
       console.error(error);
     } finally {

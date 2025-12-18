@@ -16,6 +16,7 @@ import { signUp } from "@/lib/auth-client";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
+import { track, identifyUser, ANALYTICS_EVENTS } from "@/lib/analytics";
 
 export default function SignUp() {
   const [name, setName] = useState("");
@@ -101,7 +102,9 @@ export default function SignUp() {
                   onError: (ctx) => {
                     toast.error(ctx.error.message);
                   },
-                  onSuccess: async () => {
+                  onSuccess: async (ctx) => {
+                    identifyUser(ctx.data.user.id, { email, name });
+                    track(ANALYTICS_EVENTS.USER_SIGNED_UP);
                     toast.success("Account created successfully!");
                     router.push("/");
                   },
