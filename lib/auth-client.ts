@@ -6,3 +6,11 @@ export const authClient = createAuthClient({
 });
 
 export const { signIn, signOut, signUp, useSession } = authClient;
+
+// Social sign-in helper
+export const signInWithGoogle = () => {
+  return signIn.social({
+    provider: "google",
+    callbackURL: "/",
+  });
+};
