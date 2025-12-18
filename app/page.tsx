@@ -28,7 +28,7 @@ function Header({
   isPending: boolean;
 }) {
   return (
-    <header className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50">
+    <header className="border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 sticky top-0 z-50">
       <div className="container mx-auto px-4 h-16 flex items-center justify-between">
         <Link href="/" className="flex items-center gap-2">
           <ChefHat className="h-6 w-6" />
@@ -55,11 +55,7 @@ function Header({
                   Marketplace
                 </Button>
               </Link>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => signOut()}
-              >
+              <Button variant="outline" size="sm" onClick={() => signOut()}>
                 Sign Out
               </Button>
             </>
@@ -145,9 +141,7 @@ function FeaturesSection() {
   return (
     <section className="py-20 bg-muted/50">
       <div className="container mx-auto px-4">
-        <h2 className="text-3xl font-bold text-center mb-12">
-          How it works
-        </h2>
+        <h2 className="text-3xl font-bold text-center mb-12">How it works</h2>
         <div className="grid md:grid-cols-3 gap-8">
           {features.map((feature) => (
             <div

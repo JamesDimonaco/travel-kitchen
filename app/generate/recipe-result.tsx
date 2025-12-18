@@ -18,12 +18,14 @@ import {
   Lightbulb,
 } from "lucide-react";
 import type { RecipeResponse, RecipeFormData } from "@/lib/recipe-schema";
+import RecipeChat from "./recipe-chat";
 
 interface RecipeResultProps {
   recipe: RecipeResponse;
   inputs: RecipeFormData;
   onBack: () => void;
   isAuthenticated: boolean;
+  onRecipeUpdate?: (newRecipe: RecipeResponse) => void;
 }
 
 export default function RecipeResult({
@@ -31,9 +33,11 @@ export default function RecipeResult({
   inputs,
   onBack,
   isAuthenticated,
+  onRecipeUpdate,
 }: RecipeResultProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [isUpdatingRecipe, setIsUpdatingRecipe] = useState(false);
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
 
   const saveRecipe = useMutation(api.recipes.saveRecipe);
@@ -105,8 +109,29 @@ export default function RecipeResult({
     }
   };
 
+  // Wrapper for onRecipeUpdate that tracks loading state
+  const handleRecipeUpdate = (newRecipe: RecipeResponse) => {
+    setIsUpdatingRecipe(false);
+    onRecipeUpdate?.(newRecipe);
+  };
+
+  const handleUpdatingStart = () => {
+    setIsUpdatingRecipe(true);
+  };
+
   return (
     <div className="min-h-screen bg-muted/30">
+      {/* Updating overlay */}
+      {isUpdatingRecipe && (
+        <div className="fixed inset-0 bg-background/80 backdrop-blur-sm z-40 flex items-center justify-center">
+          <div className="bg-background rounded-lg border p-6 shadow-lg flex flex-col items-center gap-3">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+            <p className="font-medium">Updating recipe...</p>
+            <p className="text-sm text-muted-foreground">Applying your changes</p>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="border-b bg-background sticky top-0 z-50">
         <div className="container mx-auto px-4 h-14 flex items-center justify-between">
@@ -291,7 +316,7 @@ export default function RecipeResult({
           <ol className="space-y-6">
             {recipe.steps.map((step, index) => (
               <li key={index} className="flex gap-4">
-                <div className="flex-shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
+                <div className="shrink-0 w-8 h-8 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-sm font-medium">
                   {index + 1}
                 </div>
                 <div className="flex-1 pt-1">
@@ -337,6 +362,18 @@ export default function RecipeResult({
                 <li key={index}>• {note}</li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {/* Recipe Chat - only show if not saved yet */}
+        {!isSaved && isAuthenticated && onRecipeUpdate && (
+          <div className="mt-6">
+            <RecipeChat
+              recipe={recipe}
+              inputs={inputs}
+              onRecipeUpdate={handleRecipeUpdate}
+              onUpdatingStart={handleUpdatingStart}
+            />
           </div>
         )}
 

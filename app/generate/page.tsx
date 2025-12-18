@@ -155,6 +155,10 @@ export default function GeneratePage() {
     setFormInputs(null);
   };
 
+  const handleRecipeUpdate = (newRecipe: RecipeResponse) => {
+    setRecipe(newRecipe);
+  };
+
   // Show recipe result if we have one
   if (recipe && formInputs) {
     return (
@@ -163,6 +167,7 @@ export default function GeneratePage() {
         inputs={formInputs}
         onBack={resetForm}
         isAuthenticated={!!session}
+        onRecipeUpdate={handleRecipeUpdate}
       />
     );
   }
