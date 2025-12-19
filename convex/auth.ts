@@ -16,6 +16,12 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
   return betterAuth({
     baseURL: siteUrl,
     database: authComponent.adapter(ctx),
+    // Trusted origins for CSRF protection
+    trustedOrigins: [
+      "http://localhost:3000",
+      "https://www.travelkitchen.app",
+      "https://travel-kitchen.vercel.app",
+    ],
     // Configure simple, non-verified email/password to get started
     emailAndPassword: {
       enabled: true,
