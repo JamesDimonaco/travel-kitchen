@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import ConvexClientProvider from "@/components/ConvexClientProvider";
 import { PostHogProvider } from "@/components/PostHogProvider";
+import { ThemeProvider } from "@/components/theme-provider";
 import { getToken } from "@/lib/auth-server";
 import { Toaster } from "sonner";
 import {
@@ -124,7 +125,7 @@ export default async function RootLayout({
   const token = await getToken();
 
   return (
-    <html lang="en">
+    <html lang="en" suppressHydrationWarning>
       <head>
         <OrganizationSchema />
         <WebsiteSchema />
@@ -132,12 +133,19 @@ export default async function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        <PostHogProvider>
-          <ConvexClientProvider initialToken={token}>
-            {children}
-          </ConvexClientProvider>
-        </PostHogProvider>
-        <Toaster />
+        <ThemeProvider
+          attribute="class"
+          defaultTheme="system"
+          enableSystem
+          disableTransitionOnChange
+        >
+          <PostHogProvider>
+            <ConvexClientProvider initialToken={token}>
+              {children}
+            </ConvexClientProvider>
+          </PostHogProvider>
+          <Toaster />
+        </ThemeProvider>
       </body>
     </html>
   );

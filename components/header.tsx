@@ -30,7 +30,10 @@ import {
   LogIn,
   UserPlus,
   MoreVertical,
+  Moon,
+  Sun,
 } from "lucide-react";
+import { useTheme } from "next-themes";
 import { track, resetUser, ANALYTICS_EVENTS } from "@/lib/analytics";
 
 interface HeaderProps {
@@ -44,6 +47,7 @@ export function Header({ title, centerContent, rightContent }: HeaderProps) {
   const pathname = usePathname();
   const isHome = pathname === "/";
   const [sheetOpen, setSheetOpen] = useState(false);
+  const { setTheme, theme } = useTheme();
 
   const handleSignOutClick = () => {
     track(ANALYTICS_EVENTS.USER_SIGNED_OUT);
@@ -57,6 +61,18 @@ export function Header({ title, centerContent, rightContent }: HeaderProps) {
     { href: "/my-recipes", label: "My Recipes", icon: BookOpen },
     { href: "/marketplace", label: "Marketplace", icon: Globe },
   ];
+
+  const ThemeToggleButton = () => (
+    <Button
+      variant="ghost"
+      size="icon"
+      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+    >
+      <Sun className="h-4 w-4 rotate-0 scale-100 transition-all dark:-rotate-90 dark:scale-0" />
+      <Moon className="absolute h-4 w-4 rotate-90 scale-0 transition-all dark:rotate-0 dark:scale-100" />
+      <span className="sr-only">Toggle theme</span>
+    </Button>
+  );
 
   return (
     <header className="border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 sticky top-0 z-50">
@@ -107,6 +123,11 @@ export function Header({ title, centerContent, rightContent }: HeaderProps) {
 
               {/* Additional right content (e.g., New Recipe button) - before menu */}
               {rightContent}
+
+              {/* Theme toggle - desktop */}
+              <div className="hidden md:block">
+                <ThemeToggleButton />
+              </div>
 
               {/* Desktop: Sign out button */}
               <Button
@@ -180,6 +201,15 @@ export function Header({ title, centerContent, rightContent }: HeaderProps) {
                     <div className="border-t my-2" />
                     <Button
                       variant="ghost"
+                      className="w-full justify-start gap-3"
+                      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                    >
+                      <Sun className="h-4 w-4 dark:hidden" />
+                      <Moon className="h-4 w-4 hidden dark:block" />
+                      {theme === "dark" ? "Light Mode" : "Dark Mode"}
+                    </Button>
+                    <Button
+                      variant="ghost"
                       className="w-full justify-start gap-3 text-destructive hover:text-destructive hover:bg-destructive/10"
                       onClick={handleSignOutClick}
                     >
@@ -192,6 +222,11 @@ export function Header({ title, centerContent, rightContent }: HeaderProps) {
             </>
           ) : (
             <>
+              {/* Not signed in - theme toggle */}
+              <div className="hidden sm:block">
+                <ThemeToggleButton />
+              </div>
+
               {/* Not signed in */}
               <Link href="/sign-in" className="hidden sm:block">
                 <Button variant="ghost" size="sm">
@@ -236,6 +271,16 @@ export function Header({ title, centerContent, rightContent }: HeaderProps) {
                         Get Started
                       </Button>
                     </Link>
+                    <div className="border-t my-2" />
+                    <Button
+                      variant="ghost"
+                      className="w-full justify-start gap-3"
+                      onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
+                    >
+                      <Sun className="h-4 w-4 dark:hidden" />
+                      <Moon className="h-4 w-4 hidden dark:block" />
+                      {theme === "dark" ? "Light Mode" : "Dark Mode"}
+                    </Button>
                   </nav>
                 </SheetContent>
               </Sheet>
