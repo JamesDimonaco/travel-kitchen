@@ -3,10 +3,10 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { handleSignOut, useSession } from "@/lib/auth-client";
-import { ChefHat, UtensilsCrossed, Globe, Clock, Loader2 } from "lucide-react";
-import { track, resetUser, ANALYTICS_EVENTS } from "@/lib/analytics";
+import { useSession } from "@/lib/auth-client";
+import { UtensilsCrossed, Globe, Clock } from "lucide-react";
 import { FAQSchema } from "@/components/seo/structured-data";
+import { Header } from "@/components/header";
 
 const faqs = [
   {
@@ -37,13 +37,13 @@ const faqs = [
 ];
 
 export default function Home() {
-  const { data: session, isPending } = useSession();
+  const { data: session } = useSession();
 
   return (
     <>
       <FAQSchema faqs={faqs} />
       <div className="min-h-screen flex flex-col">
-        <Header session={session} isPending={isPending} />
+        <Header />
         <main className="flex-1">
           <HeroSection isLoggedIn={!!session} />
           <FeaturesSection />
@@ -52,71 +52,6 @@ export default function Home() {
         <Footer />
       </div>
     </>
-  );
-}
-
-function Header({
-  session,
-  isPending,
-}: {
-  session: unknown;
-  isPending: boolean;
-}) {
-  return (
-    <header className="border-b bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/60 sticky top-0 z-50">
-      <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-        <Link href="/" className="flex items-center gap-2">
-          <ChefHat className="h-6 w-6" />
-          <span className="font-semibold text-lg">Traveler&apos;s Kitchen</span>
-        </Link>
-
-        <nav className="flex items-center gap-4">
-          {isPending ? (
-            <Loader2 className="h-4 w-4 animate-spin" />
-          ) : session ? (
-            <>
-              <Link href="/generate">
-                <Button variant="ghost" size="sm">
-                  Generate Recipe
-                </Button>
-              </Link>
-              <Link href="/my-recipes">
-                <Button variant="ghost" size="sm">
-                  My Recipes
-                </Button>
-              </Link>
-              <Link href="/marketplace">
-                <Button variant="ghost" size="sm">
-                  Marketplace
-                </Button>
-              </Link>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  track(ANALYTICS_EVENTS.USER_SIGNED_OUT);
-                  resetUser();
-                  handleSignOut();
-                }}
-              >
-                Sign Out
-              </Button>
-            </>
-          ) : (
-            <>
-              <Link href="/sign-in">
-                <Button variant="ghost" size="sm">
-                  Sign In
-                </Button>
-              </Link>
-              <Link href="/sign-up">
-                <Button size="sm">Get Started</Button>
-              </Link>
-            </>
-          )}
-        </nav>
-      </div>
-    </header>
   );
 }
 

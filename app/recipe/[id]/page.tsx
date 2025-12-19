@@ -6,7 +6,14 @@ import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
-  ArrowLeft,
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbList,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from "@/components/ui/breadcrumb";
+import {
   Clock,
   Users,
   ChefHat,
@@ -19,6 +26,7 @@ import {
 } from "lucide-react";
 import type { Id } from "@/convex/_generated/dataModel";
 import { RecipeSchema, BreadcrumbSchema } from "@/components/seo/structured-data";
+import { Header } from "@/components/header";
 
 export default function RecipePage() {
   const params = useParams();
@@ -66,35 +74,43 @@ export default function RecipePage() {
       )}
 
       <div className="min-h-screen bg-muted/30">
-        {/* Header */}
-        <header className="border-b bg-background sticky top-0 z-50">
-          <div className="container mx-auto px-4 h-14 flex items-center justify-between">
-            <button
-              onClick={() => router.back()}
-              className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
-            >
-              <ArrowLeft className="h-4 w-4" />
-              <span className="text-sm">Back</span>
-            </button>
+        <Header
+          centerContent={
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbLink asChild>
+                    <Link href="/marketplace">Marketplace</Link>
+                  </BreadcrumbLink>
+                </BreadcrumbItem>
+                <BreadcrumbSeparator />
+                <BreadcrumbItem>
+                  <BreadcrumbPage className="truncate max-w-[200px]">
+                    {recipe.title}
+                  </BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+          }
+        />
 
+        <main className="container mx-auto px-4 py-8 max-w-2xl">
+        {/* Title Section */}
+        <div className="bg-background rounded-lg border p-6 mb-6">
+          <div className="flex items-start justify-between gap-3 mb-2">
+            <h1 className="text-2xl font-bold">{recipe.title}</h1>
             {recipe.isPublished ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 flex-shrink-0">
                 <Globe className="h-3 w-3" />
                 Public
               </span>
             ) : (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground flex-shrink-0">
                 <Lock className="h-3 w-3" />
                 Private
               </span>
             )}
           </div>
-        </header>
-
-      <main className="container mx-auto px-4 py-8 max-w-2xl">
-        {/* Title Section */}
-        <div className="bg-background rounded-lg border p-6 mb-6">
-          <h1 className="text-2xl font-bold mb-2">{recipe.title}</h1>
           <p className="text-muted-foreground mb-4">{recipe.description}</p>
 
           <div className="flex flex-wrap gap-4 text-sm">

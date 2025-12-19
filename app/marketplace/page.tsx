@@ -5,14 +5,19 @@ import { api } from "@/convex/_generated/api";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
+  Breadcrumb,
+  BreadcrumbItem,
+  BreadcrumbList,
+  BreadcrumbPage,
+} from "@/components/ui/breadcrumb";
+import {
   Clock,
   Users,
   ChefHat,
-  ArrowLeft,
   Loader2,
-  Globe,
 } from "lucide-react";
 import { CollectionPageSchema } from "@/components/seo/structured-data";
+import { Header } from "@/components/header";
 
 export default function MarketplacePage() {
   const recipes = useQuery(api.recipes.listPublishedRecipes);
@@ -34,27 +39,19 @@ export default function MarketplacePage() {
         itemCount={recipes?.length || 0}
       />
       <div className="min-h-screen bg-muted/30">
-        {/* Header */}
-        <header className="border-b bg-background sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-14 flex items-center justify-between">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span className="text-sm">Home</span>
-          </Link>
+        <Header
+          centerContent={
+            <Breadcrumb>
+              <BreadcrumbList>
+                <BreadcrumbItem>
+                  <BreadcrumbPage>Marketplace</BreadcrumbPage>
+                </BreadcrumbItem>
+              </BreadcrumbList>
+            </Breadcrumb>
+          }
+        />
 
-          <div className="flex items-center gap-2">
-            <Globe className="h-5 w-5" />
-            <h1 className="font-semibold">Recipe Marketplace</h1>
-          </div>
-
-          <div className="w-16" /> {/* Spacer for centering */}
-        </div>
-      </header>
-
-      <main className="container mx-auto px-4 py-8 max-w-4xl">
+        <main className="container mx-auto px-4 py-8 max-w-4xl">
         <div className="text-center mb-8">
           <h2 className="text-2xl font-bold mb-2">Community Recipes</h2>
           <p className="text-muted-foreground">

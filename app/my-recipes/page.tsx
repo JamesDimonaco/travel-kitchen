@@ -17,10 +17,10 @@ import {
   Trash2,
   Loader2,
   Plus,
-  ArrowLeft,
 } from "lucide-react";
 import type { Id } from "@/convex/_generated/dataModel";
 import { track, ANALYTICS_EVENTS } from "@/lib/analytics";
+import { Header } from "@/components/header";
 
 export default function MyRecipesPage() {
   const { data: session, isPending: isSessionPending } = useSession();
@@ -82,27 +82,17 @@ export default function MyRecipesPage() {
 
   return (
     <div className="min-h-screen bg-muted/30">
-      {/* Header */}
-      <header className="border-b bg-background sticky top-0 z-50">
-        <div className="container mx-auto px-4 h-14 flex items-center justify-between">
-          <Link
-            href="/"
-            className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
-          >
-            <ArrowLeft className="h-4 w-4" />
-            <span className="text-sm">Home</span>
-          </Link>
-
-          <h1 className="font-semibold">My Recipes</h1>
-
+      <Header
+        title="My Recipes"
+        rightContent={
           <Link href="/generate">
             <Button size="sm">
               <Plus className="h-4 w-4 mr-2" />
               New Recipe
             </Button>
           </Link>
-        </div>
-      </header>
+        }
+      />
 
       <main className="container mx-auto px-4 py-8 max-w-4xl">
         {recipes.length === 0 ? (
