@@ -15,3 +15,20 @@ export const signInWithGoogle = () => {
     callbackURL: "/",
   });
 };
+
+// Sign out helper that handles cross-domain cleanup
+export const handleSignOut = async () => {
+  await signOut({
+    fetchOptions: {
+      onSuccess: () => {
+        // Clear any local storage used by cross-domain client
+        if (typeof window !== "undefined") {
+          localStorage.removeItem("better-auth-cookie");
+          localStorage.removeItem("better-auth-session");
+        }
+        // Force reload to clear any cached state
+        window.location.href = "/";
+      },
+    },
+  });
+};

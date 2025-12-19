@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { signOut, useSession } from "@/lib/auth-client";
+import { handleSignOut, useSession } from "@/lib/auth-client";
 import { ChefHat, UtensilsCrossed, Globe, Clock, Loader2 } from "lucide-react";
 import { track, resetUser, ANALYTICS_EVENTS } from "@/lib/analytics";
 import { FAQSchema } from "@/components/seo/structured-data";
@@ -96,7 +96,7 @@ function Header({
                 onClick={() => {
                   track(ANALYTICS_EVENTS.USER_SIGNED_OUT);
                   resetUser();
-                  signOut();
+                  handleSignOut();
                 }}
               >
                 Sign Out
