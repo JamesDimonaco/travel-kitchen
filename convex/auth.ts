@@ -1,5 +1,5 @@
 import { createClient, type GenericCtx } from "@convex-dev/better-auth";
-import { convex } from "@convex-dev/better-auth/plugins";
+import { convex, crossDomain } from "@convex-dev/better-auth/plugins";
 import { components } from "./_generated/api";
 import { DataModel } from "./_generated/dataModel";
 import { query } from "./_generated/server";
@@ -7,6 +7,7 @@ import { betterAuth } from "better-auth";
 import authConfig from "./auth.config";
 
 const siteUrl = process.env.SITE_URL!;
+const appUrl = process.env.APP_URL!;
 
 // The component client has methods needed for integrating Convex with Better Auth,
 // as well as helper methods for general use.
@@ -37,6 +38,8 @@ export const createAuth = (ctx: GenericCtx<DataModel>) => {
     plugins: [
       // The Convex plugin is required for Convex compatibility
       convex({ authConfig }),
+      // Cross-domain plugin for OAuth with separate frontend/backend domains
+      crossDomain({ siteUrl: appUrl }),
     ],
   });
 };
