@@ -31,6 +31,7 @@ import {
 } from "@/lib/recipe-schema";
 import RecipeResult from "./recipe-result";
 import { track, ANALYTICS_EVENTS } from "@/lib/analytics";
+import { getAuthCookie } from "@/lib/auth-client";
 
 interface SingleRecipeFormProps {
   isAuthenticated: boolean;
@@ -133,7 +134,10 @@ export default function SingleRecipeForm({
     try {
       const response = await fetch("/api/ai/new-receipe", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Better-Auth-Cookie": getAuthCookie(),
+        },
         body: JSON.stringify(formData),
       });
 

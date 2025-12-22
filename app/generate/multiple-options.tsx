@@ -12,6 +12,7 @@ import RecipeIdeaCard, { type RecipeIdea } from "./recipe-idea-card";
 import RecipeIdeaDialog from "./recipe-idea-dialog";
 import type { Id } from "@/convex/_generated/dataModel";
 import { track, ANALYTICS_EVENTS } from "@/lib/analytics";
+import { getAuthCookie } from "@/lib/auth-client";
 
 interface FullRecipe {
   shopping: {
@@ -72,7 +73,10 @@ export default function MultipleOptions() {
       // Generate ideas
       const response = await fetch("/api/ai/generate-ideas", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Better-Auth-Cookie": getAuthCookie(),
+        },
         body: JSON.stringify(data),
       });
 
@@ -111,7 +115,10 @@ export default function MultipleOptions() {
 
       const response = await fetch("/api/ai/generate-ideas", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Better-Auth-Cookie": getAuthCookie(),
+        },
         body: JSON.stringify({
           ...sessionInputs,
           context: moreContext || undefined,

@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import type { RecipeResponse, RecipeFormData } from "@/lib/recipe-schema";
 import { track, ANALYTICS_EVENTS } from "@/lib/analytics";
+import { getAuthCookie } from "@/lib/auth-client";
 
 interface Message {
   id: string;
@@ -67,7 +68,10 @@ export default function RecipeChat({
     try {
       const response = await fetch("/api/ai/recipe-chat", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Better-Auth-Cookie": getAuthCookie(),
+        },
         body: JSON.stringify({
           messages: [...messages, userMessage].map((m) => ({
             role: m.role,
@@ -138,7 +142,10 @@ export default function RecipeChat({
     try {
       const response = await fetch("/api/ai/update-recipe", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Better-Auth-Cookie": getAuthCookie(),
+        },
         body: JSON.stringify({
           messages: messages.map((m) => ({
             role: m.role,

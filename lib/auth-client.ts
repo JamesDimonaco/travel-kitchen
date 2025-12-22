@@ -8,6 +8,11 @@ export const authClient = createAuthClient({
 
 export const { signIn, signOut, signUp, useSession } = authClient;
 
+// Helper to get the auth cookie for API requests in cross-domain setup
+export const getAuthCookie = () => {
+  return authClient.getCookie();
+};
+
 // Social sign-in helper
 export const signInWithGoogle = () => {
   return signIn.social({

@@ -27,6 +27,7 @@ import type { RecipeIdea } from "./recipe-idea-card";
 import type { IdeasFormData } from "./recipe-ideas-form";
 import type { Id } from "@/convex/_generated/dataModel";
 import { track, ANALYTICS_EVENTS } from "@/lib/analytics";
+import { getAuthCookie } from "@/lib/auth-client";
 
 interface FullRecipe {
   shopping: {
@@ -78,7 +79,10 @@ export default function RecipeIdeaDialog({
     try {
       const response = await fetch("/api/ai/expand-idea", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+          "Better-Auth-Cookie": getAuthCookie(),
+        },
         body: JSON.stringify({
           idea: {
             title: idea.title,
