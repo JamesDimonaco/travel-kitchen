@@ -56,6 +56,10 @@ export interface LLMEventProperties {
 
   // Streaming
   isStreaming?: boolean;
+
+  // Anonymous tracking
+  isAuthenticated?: boolean;
+  isAnonymous?: boolean;
 }
 
 // Cost estimates per 1M tokens (GPT-4o-mini pricing)

@@ -86,6 +86,18 @@ export const listMyRecipes = query({
   },
 });
 
+// Get anonymous recipes by session ID (for display before claiming)
+export const listAnonymousRecipes = query({
+  args: { sessionId: v.string() },
+  handler: async (ctx, args) => {
+    return await ctx.db
+      .query("recipes")
+      .withIndex("by_session", (q) => q.eq("sessionId", args.sessionId))
+      .order("desc")
+      .collect();
+  },
+});
+
 // Get a single recipe by ID
 export const getRecipe = query({
   args: { id: v.id("recipes") },
@@ -213,6 +225,80 @@ export const updateRecipe = mutation({
     await ctx.db.patch(id, updates);
 
     return id;
+  },
+});
+
+// Constants
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
+
+// Save a recipe for anonymous users (with sessionId)
+export const saveAnonymousRecipe = mutation({
+  args: {
+    sessionId: v.string(),
+    title: v.string(),
+    description: v.string(),
+    inputs: v.object({
+      equipment: v.array(v.string()),
+      dietaryPreferences: v.optional(v.array(v.string())),
+      allergens: v.optional(v.array(v.string())),
+      country: v.optional(v.string()),
+      ingredients: v.array(v.string()),
+      servings: v.optional(v.number()),
+      maxTime: v.optional(v.number()),
+    }),
+    prepTime: v.number(),
+    cookTime: v.number(),
+    servings: v.number(),
+    equipmentUsed: v.array(v.string()),
+    shoppingList: v.object({
+      have: v.array(v.string()),
+      need: v.array(v.string()),
+      optional: v.array(v.string()),
+    }),
+    prepGroup: v.array(
+      v.object({
+        task: v.string(),
+        ingredients: v.array(v.string()),
+      })
+    ),
+    steps: v.array(
+      v.object({
+        number: v.number(),
+        instruction: v.string(),
+        duration: v.optional(v.number()),
+        equipment: v.optional(v.string()),
+      })
+    ),
+    substitutions: v.array(
+      v.object({
+        original: v.string(),
+        substitute: v.string(),
+        note: v.optional(v.string()),
+      })
+    ),
+    tips: v.optional(v.array(v.string())),
+  },
+  handler: async (ctx, args) => {
+    const { sessionId, ...recipeData } = args;
+
+    return await ctx.db.insert("recipes", {
+      userId: "", // Empty for anonymous
+      sessionId,
+      expiresAt: Date.now() + THIRTY_DAYS_MS,
+      title: recipeData.title,
+      description: recipeData.description,
+      inputs: recipeData.inputs,
+      prepTime: recipeData.prepTime,
+      cookTime: recipeData.cookTime,
+      servings: recipeData.servings,
+      equipmentUsed: recipeData.equipmentUsed,
+      shoppingList: recipeData.shoppingList,
+      prepGroup: recipeData.prepGroup,
+      steps: recipeData.steps,
+      substitutions: recipeData.substitutions,
+      tips: recipeData.tips,
+      isPublished: false, // Anonymous recipes can't be published
+    });
   },
 });
 

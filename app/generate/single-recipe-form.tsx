@@ -1,8 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import Link from "next/link";
+import { useQuery, useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -32,6 +34,7 @@ import {
 import RecipeResult from "./recipe-result";
 import { track, ANALYTICS_EVENTS } from "@/lib/analytics";
 import { getAuthCookie } from "@/lib/auth-client";
+import { getOrCreateSessionId } from "@/lib/session-id";
 
 interface SingleRecipeFormProps {
   isAuthenticated: boolean;
@@ -42,6 +45,22 @@ export default function SingleRecipeForm({
   isAuthenticated,
   sessionPending,
 }: SingleRecipeFormProps) {
+  // Session ID for anonymous users
+  const [sessionId, setSessionId] = useState<string>("");
+
+  useEffect(() => {
+    // Get or create session ID on mount (client-side only)
+    setSessionId(getOrCreateSessionId());
+  }, []);
+
+  // Usage tracking - check if user can generate
+  const usageCheck = useQuery(
+    api.usage.canGenerate,
+    sessionId ? { sessionId } : "skip"
+  );
+  const recordGeneration = useMutation(api.usage.recordGeneration);
+  const recordAnonymousGeneration = useMutation(api.usage.recordAnonymousGeneration);
+
   // Form state
   const [equipment, setEquipment] = useState<string[]>([]);
   const [limitations, setLimitations] = useState<string[]>([]);
@@ -99,8 +118,19 @@ export default function SingleRecipeForm({
   };
 
   const handleGenerate = async () => {
-    if (!isAuthenticated) {
+    // Check if user can generate (authenticated or anonymous with sessionId)
+    if (!isAuthenticated && !sessionId) {
       toast.error("Please sign in to generate recipes");
+      return;
+    }
+
+    // Check usage limits
+    if (usageCheck && !usageCheck.canGenerate) {
+      if (usageCheck.isAuthenticated) {
+        toast.error(usageCheck.reason || "You've used all your AI generations. Purchase more credits to continue.");
+      } else {
+        toast.error(usageCheck.reason || "Sign up to create more recipes!");
+      }
       return;
     }
 
@@ -138,13 +168,29 @@ export default function SingleRecipeForm({
           "Content-Type": "application/json",
           "Better-Auth-Cookie": getAuthCookie(),
         },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          ...formData,
+          // Include sessionId for anonymous users
+          sessionId: !isAuthenticated ? sessionId : undefined,
+        }),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
         throw new Error(data.error || "Failed to generate recipe");
+      }
+
+      // Record usage after successful generation
+      try {
+        if (isAuthenticated) {
+          await recordGeneration();
+        } else if (sessionId) {
+          await recordAnonymousGeneration({ sessionId });
+        }
+      } catch (usageError) {
+        console.error("Failed to record usage:", usageError);
+        // Don't fail the generation if usage recording fails
       }
 
       setRecipe(data.recipe);
@@ -155,6 +201,7 @@ export default function SingleRecipeForm({
         hasDiet: diet.length > 0,
         timeLimit,
         servings,
+        isAuthenticated,
       });
       toast.success("Recipe generated!");
     } catch (error) {
@@ -184,6 +231,7 @@ export default function SingleRecipeForm({
         inputs={formInputs}
         onBack={resetForm}
         isAuthenticated={isAuthenticated}
+        sessionId={!isAuthenticated ? sessionId : undefined}
         onRecipeUpdate={handleRecipeUpdate}
       />
     );
@@ -558,19 +606,34 @@ export default function SingleRecipeForm({
 
       {/* Generate Button */}
       <div className="sticky bottom-4 bg-background/95 backdrop-blur rounded-lg border p-4 shadow-lg">
-        {!isAuthenticated && !sessionPending && (
+        {/* Usage info for authenticated users */}
+        {isAuthenticated && usageCheck && (
           <p className="text-sm text-muted-foreground text-center mb-3">
-            <Link href="/sign-in" className="text-primary underline">
-              Sign in
-            </Link>{" "}
-            to generate recipes
+            {usageCheck.remaining > 0 ? (
+              <>You have {usageCheck.remaining} AI generation{usageCheck.remaining !== 1 ? "s" : ""} remaining</>
+            ) : (
+              <>You&apos;ve used all your AI generations. <Link href="/pricing" className="text-primary underline">Get more credits</Link></>
+            )}
           </p>
         )}
+
+        {/* Prompt for anonymous users */}
+        {!isAuthenticated && !sessionPending && usageCheck && (
+          <p className="text-sm text-muted-foreground text-center mb-3">
+            {usageCheck.canGenerate ? (
+              <>Try your first recipe free! <Link href="/sign-in" className="text-primary underline">Sign up</Link> to save and get 2 more.</>
+            ) : (
+              <><Link href="/sign-in" className="text-primary underline">Sign up</Link> to create more recipes and save them!</>
+            )}
+          </p>
+        )}
+
         <Button
           onClick={handleGenerate}
           disabled={
             isGenerating ||
-            !isAuthenticated ||
+            (!isAuthenticated && !sessionId) ||
+            (usageCheck && !usageCheck.canGenerate) ||
             equipment.length === 0 ||
             (ingredientsHave.length === 0 && ingredientsToBuy.length === 0)
           }

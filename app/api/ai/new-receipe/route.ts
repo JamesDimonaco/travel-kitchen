@@ -12,18 +12,21 @@ export async function POST(req: Request) {
   const startTime = Date.now();
 
   try {
-    // Check authentication
+    // Parse request body first to get sessionId
+    const body = await req.json();
+    const { sessionId, ...formBody } = body;
+
+    // Check authentication - allow anonymous if sessionId provided
     const authenticated = await isAuthenticated();
-    if (!authenticated) {
+    if (!authenticated && !sessionId) {
       return Response.json(
-        { error: "You must be signed in to generate recipes" },
+        { error: "You must be signed in or provide a session ID to generate recipes" },
         { status: 401 }
       );
     }
 
-    // Parse and validate request body
-    const body = await req.json();
-    const parseResult = recipeFormSchema.safeParse(body);
+    // Validate form data (without sessionId)
+    const parseResult = recipeFormSchema.safeParse(formBody);
 
     if (!parseResult.success) {
       return Response.json(
@@ -45,6 +48,8 @@ export async function POST(req: Request) {
       equipment: formData.equipment,
       dietaryPreferences: formData.diet,
       ingredientCount: formData.ingredientsHave?.length || 0,
+      isAuthenticated: authenticated,
+      isAnonymous: !authenticated && !!sessionId,
     });
 
     // Generate recipe using AI
@@ -125,6 +130,8 @@ export async function POST(req: Request) {
     return Response.json({
       recipe: recipeResult.data,
       inputs: formData,
+      isAuthenticated: authenticated,
+      sessionId: !authenticated ? sessionId : undefined,
     });
   } catch (error) {
     console.error("Recipe generation error:", error);

@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -26,6 +27,7 @@ interface RecipeResultProps {
   inputs: RecipeFormData;
   onBack: () => void;
   isAuthenticated: boolean;
+  sessionId?: string;
   onRecipeUpdate?: (newRecipe: RecipeResponse) => void;
 }
 
@@ -34,6 +36,7 @@ export default function RecipeResult({
   inputs,
   onBack,
   isAuthenticated,
+  sessionId,
   onRecipeUpdate,
 }: RecipeResultProps) {
   const [isSaving, setIsSaving] = useState(false);
@@ -42,6 +45,7 @@ export default function RecipeResult({
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
 
   const saveRecipe = useMutation(api.recipes.saveRecipe);
+  const saveAnonymousRecipe = useMutation(api.recipes.saveAnonymousRecipe);
 
   const toggleChecked = (item: string) => {
     const newChecked = new Set(checkedItems);
@@ -54,8 +58,9 @@ export default function RecipeResult({
   };
 
   const handleSave = async () => {
-    if (!isAuthenticated) {
-      toast.error("Please sign in to save recipes");
+    // Either authenticated or have a sessionId
+    if (!isAuthenticated && !sessionId) {
+      toast.error("Unable to save recipe");
       return;
     }
 
@@ -67,7 +72,7 @@ export default function RecipeResult({
         ...(inputs.ingredientsToBuy || []),
       ];
 
-      await saveRecipe({
+      const recipeData = {
         title: recipe.title,
         description: recipe.summary,
         inputs: {
@@ -98,11 +103,27 @@ export default function RecipeResult({
           substitute: sub.swap_options.join(", "),
         })),
         tips: recipe.diet_notes,
-      });
+      };
+
+      if (isAuthenticated) {
+        await saveRecipe(recipeData);
+      } else if (sessionId) {
+        await saveAnonymousRecipe({ ...recipeData, sessionId });
+      }
 
       setIsSaved(true);
-      track(ANALYTICS_EVENTS.RECIPE_SAVED, { title: recipe.title });
-      toast.success("Recipe saved!");
+      track(ANALYTICS_EVENTS.RECIPE_SAVED, { title: recipe.title, isAuthenticated });
+
+      if (isAuthenticated) {
+        toast.success("Recipe saved!");
+      } else {
+        toast.success("Recipe saved! Sign up to keep it forever.", {
+          action: {
+            label: "Sign up",
+            onClick: () => window.location.href = "/sign-up",
+          },
+        });
+      }
     } catch (error) {
       track(ANALYTICS_EVENTS.RECIPE_SAVE_FAILED);
       toast.error("Failed to save recipe");
@@ -148,7 +169,7 @@ export default function RecipeResult({
 
           <Button
             onClick={handleSave}
-            disabled={isSaving || isSaved || !isAuthenticated}
+            disabled={isSaving || isSaved || (!isAuthenticated && !sessionId)}
             size="sm"
           >
             {isSaving ? (
@@ -381,8 +402,13 @@ export default function RecipeResult({
         )}
 
         {/* Bottom Save Button */}
-        {!isSaved && isAuthenticated && (
+        {!isSaved && (isAuthenticated || sessionId) && (
           <div className="sticky bottom-4 mt-6">
+            {!isAuthenticated && (
+              <p className="text-sm text-muted-foreground text-center mb-3">
+                <Link href="/sign-up" className="text-primary underline">Sign up</Link> to keep your recipes forever
+              </p>
+            )}
             <Button
               onClick={handleSave}
               disabled={isSaving}
@@ -394,7 +420,7 @@ export default function RecipeResult({
               ) : (
                 <Save className="h-5 w-5 mr-2" />
               )}
-              Save to My Recipes
+              {isAuthenticated ? "Save to My Recipes" : "Save Recipe"}
             </Button>
           </div>
         )}

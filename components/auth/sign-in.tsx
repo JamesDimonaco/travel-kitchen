@@ -11,13 +11,16 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
-import { useState } from "react";
+import { useState, useCallback } from "react";
 import { Loader2 } from "lucide-react";
 import { signIn, signInWithGoogle } from "@/lib/auth-client";
 import Link from "next/link";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { track, identifyUser, ANALYTICS_EVENTS } from "@/lib/analytics";
+import { useMutation } from "convex/react";
+import { api } from "@/convex/_generated/api";
+import { getSessionId, clearSessionId } from "@/lib/session-id";
 
 export default function SignIn() {
   const [email, setEmail] = useState("");
@@ -27,10 +30,30 @@ export default function SignIn() {
   const [rememberMe, setRememberMe] = useState(false);
   const router = useRouter();
 
+  const claimAnonymousRecipes = useMutation(api.usage.claimAnonymousRecipes);
+
+  // Claim any anonymous recipes after successful sign-in
+  const handleClaimRecipes = useCallback(async () => {
+    const sessionId = getSessionId();
+    if (sessionId) {
+      try {
+        const result = await claimAnonymousRecipes({ sessionId });
+        if (result.claimed > 0) {
+          toast.success(`${result.claimed} recipe${result.claimed > 1 ? "s" : ""} added to your account!`);
+          clearSessionId();
+        }
+      } catch (error) {
+        console.error("Failed to claim recipes:", error);
+        // Don't show error to user - claiming is a background enhancement
+      }
+    }
+  }, [claimAnonymousRecipes]);
+
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     try {
       await signInWithGoogle();
+      // Note: For OAuth, claiming happens after redirect in a useEffect
     } catch (error) {
       toast.error("Failed to sign in with Google");
       setGoogleLoading(false);
@@ -109,9 +132,11 @@ export default function SignIn() {
                   onError: (ctx) => {
                     toast.error(ctx.error.message);
                   },
-                  onSuccess: (ctx) => {
+                  onSuccess: async (ctx) => {
                     identifyUser(ctx.data.user.id, { email });
                     track(ANALYTICS_EVENTS.USER_SIGNED_IN);
+                    // Claim anonymous recipes in background
+                    handleClaimRecipes();
                     router.push("/");
                   },
                 }
