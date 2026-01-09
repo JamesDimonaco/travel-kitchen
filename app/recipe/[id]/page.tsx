@@ -33,6 +33,7 @@ import { Header } from "@/components/header";
 import { useSession } from "@/lib/auth-client";
 import { RecipeEditor, type RecipeEditorData } from "@/components/recipe-editor";
 import { toast } from "sonner";
+import { getSessionId } from "@/lib/session-id";
 
 export default function RecipePage() {
   const params = useParams();
@@ -43,12 +44,21 @@ export default function RecipePage() {
 
   const [isEditing, setIsEditing] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [sessionId, setSessionId] = useState<string | undefined>(undefined);
 
-  const recipe = useQuery(api.recipes.getRecipe, { id: recipeId });
+  // Get sessionId on mount for anonymous recipe access
+  useEffect(() => {
+    const sid = getSessionId();
+    if (sid) setSessionId(sid);
+  }, []);
+
+  const recipe = useQuery(api.recipes.getRecipe, { id: recipeId, sessionId });
   const updateRecipe = useMutation(api.recipes.updateRecipe);
 
-  // Check if current user is the owner
-  const isOwner = session?.user?.id && recipe?.userId === session.user.id;
+  // Check if current user is the owner (authenticated or anonymous)
+  const isOwner =
+    (session?.user?.id && recipe?.userId === session.user.id) ||
+    (sessionId && recipe?.sessionId === sessionId);
 
   // Auto-enable edit mode if ?edit=true is in URL and user is owner
   useEffect(() => {

@@ -10,6 +10,7 @@ import {
   OrganizationSchema,
   WebsiteSchema,
 } from "@/components/seo/structured-data";
+import { RecipeClaimHandler } from "@/components/recipe-claim-handler";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -141,6 +142,7 @@ export default async function RootLayout({
         >
           <PostHogProvider>
             <ConvexClientProvider initialToken={token}>
+              <RecipeClaimHandler />
               {children}
             </ConvexClientProvider>
           </PostHogProvider>

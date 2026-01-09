@@ -100,7 +100,7 @@ export const listAnonymousRecipes = query({
 
 // Get a single recipe by ID
 export const getRecipe = query({
-  args: { id: v.id("recipes") },
+  args: { id: v.id("recipes"), sessionId: v.optional(v.string()) },
   handler: async (ctx, args) => {
     const recipe = await ctx.db.get(args.id);
     if (!recipe) return null;
@@ -108,11 +108,14 @@ export const getRecipe = query({
     // If published, anyone can view
     if (recipe.isPublished) return recipe;
 
-    // Otherwise, only owner can view
+    // Check if authenticated user owns it
     const user = await authComponent.getAuthUser(ctx);
-    if (!user || user._id !== recipe.userId) return null;
+    if (user && user._id === recipe.userId) return recipe;
 
-    return recipe;
+    // Check if anonymous user owns it (via sessionId)
+    if (args.sessionId && recipe.sessionId === args.sessionId) return recipe;
+
+    return null;
   },
 });
 
@@ -302,7 +305,7 @@ export const saveAnonymousRecipe = mutation({
   },
 });
 
-// Create a new recipe manually (not AI-generated)
+// Create a new recipe manually (not AI-generated) - authenticated users
 export const createRecipe = mutation({
   args: {
     title: v.string(),
@@ -368,7 +371,82 @@ export const createRecipe = mutation({
       steps: args.steps,
       substitutions: args.substitutions,
       tips: args.tips,
+      isManual: true,
       isPublished: false,
+    });
+  },
+});
+
+// Create a new recipe manually for anonymous users
+export const createAnonymousRecipe = mutation({
+  args: {
+    sessionId: v.string(),
+    title: v.string(),
+    description: v.string(),
+    prepTime: v.number(),
+    cookTime: v.number(),
+    servings: v.number(),
+    equipmentUsed: v.array(v.string()),
+    shoppingList: v.object({
+      have: v.array(v.string()),
+      need: v.array(v.string()),
+      optional: v.array(v.string()),
+    }),
+    prepGroup: v.array(
+      v.object({
+        task: v.string(),
+        ingredients: v.array(v.string()),
+      })
+    ),
+    steps: v.array(
+      v.object({
+        number: v.number(),
+        instruction: v.string(),
+        duration: v.optional(v.number()),
+        equipment: v.optional(v.string()),
+      })
+    ),
+    substitutions: v.array(
+      v.object({
+        original: v.string(),
+        substitute: v.string(),
+        note: v.optional(v.string()),
+      })
+    ),
+    tips: v.optional(v.array(v.string())),
+  },
+  handler: async (ctx, args) => {
+    const { sessionId, ...recipeData } = args;
+
+    // Build inputs from the recipe data
+    const inputs = {
+      equipment: recipeData.equipmentUsed,
+      ingredients: [
+        ...recipeData.shoppingList.have,
+        ...recipeData.shoppingList.need,
+      ],
+      servings: recipeData.servings,
+      maxTime: recipeData.prepTime + recipeData.cookTime,
+    };
+
+    return await ctx.db.insert("recipes", {
+      userId: "", // Empty for anonymous
+      sessionId,
+      expiresAt: Date.now() + THIRTY_DAYS_MS,
+      title: recipeData.title,
+      description: recipeData.description,
+      inputs,
+      prepTime: recipeData.prepTime,
+      cookTime: recipeData.cookTime,
+      servings: recipeData.servings,
+      equipmentUsed: recipeData.equipmentUsed,
+      shoppingList: recipeData.shoppingList,
+      prepGroup: recipeData.prepGroup,
+      steps: recipeData.steps,
+      substitutions: recipeData.substitutions,
+      tips: recipeData.tips,
+      isManual: true,
+      isPublished: false, // Anonymous recipes can't be published
     });
   },
 });
