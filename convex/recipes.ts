@@ -104,6 +104,20 @@ export const getRecipe = query({
   },
 });
 
+// Get a published recipe by ID (public, no auth required - for SEO/metadata)
+export const getPublicRecipe = query({
+  args: { id: v.id("recipes") },
+  handler: async (ctx, args) => {
+    const recipe = await ctx.db.get(args.id);
+    if (!recipe) return null;
+
+    // Only return if published
+    if (!recipe.isPublished) return null;
+
+    return recipe;
+  },
+});
+
 // Get all published recipes (marketplace)
 export const listPublishedRecipes = query({
   args: {},
