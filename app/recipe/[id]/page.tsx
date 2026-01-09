@@ -1,8 +1,9 @@
 "use client";
 
-import { useQuery } from "convex/react";
+import { useState, useEffect } from "react";
+import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
-import { useParams, useRouter } from "next/navigation";
+import { useParams, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
@@ -23,17 +24,85 @@ import {
   Loader2,
   Globe,
   Lock,
+  Pencil,
+  X,
 } from "lucide-react";
 import type { Id } from "@/convex/_generated/dataModel";
 import { RecipeSchema, BreadcrumbSchema } from "@/components/seo/structured-data";
 import { Header } from "@/components/header";
+import { useSession } from "@/lib/auth-client";
+import { RecipeEditor, type RecipeEditorData } from "@/components/recipe-editor";
+import { toast } from "sonner";
 
 export default function RecipePage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
   const recipeId = params.id as Id<"recipes">;
+  const { data: session } = useSession();
+
+  const [isEditing, setIsEditing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   const recipe = useQuery(api.recipes.getRecipe, { id: recipeId });
+  const updateRecipe = useMutation(api.recipes.updateRecipe);
+
+  // Check if current user is the owner
+  const isOwner = session?.user?.id && recipe?.userId === session.user.id;
+
+  // Auto-enable edit mode if ?edit=true is in URL and user is owner
+  useEffect(() => {
+    if (searchParams.get("edit") === "true" && isOwner && recipe) {
+      setIsEditing(true);
+      // Clean up the URL
+      router.replace(`/recipe/${recipeId}`, { scroll: false });
+    }
+  }, [searchParams, isOwner, recipe, recipeId, router]);
+
+  // Transform recipe data for the editor
+  const getEditorData = (): RecipeEditorData | undefined => {
+    if (!recipe) return undefined;
+    return {
+      title: recipe.title,
+      description: recipe.description,
+      prepTime: recipe.prepTime,
+      cookTime: recipe.cookTime,
+      servings: recipe.servings,
+      equipmentUsed: recipe.equipmentUsed,
+      shoppingList: recipe.shoppingList,
+      prepGroup: recipe.prepGroup,
+      steps: recipe.steps,
+      substitutions: recipe.substitutions,
+      tips: recipe.tips || [],
+    };
+  };
+
+  const handleSave = async (data: RecipeEditorData) => {
+    setIsSaving(true);
+    try {
+      await updateRecipe({
+        id: recipeId,
+        title: data.title,
+        description: data.description,
+        prepTime: data.prepTime,
+        cookTime: data.cookTime,
+        servings: data.servings,
+        equipmentUsed: data.equipmentUsed,
+        shoppingList: data.shoppingList,
+        prepGroup: data.prepGroup,
+        steps: data.steps,
+        substitutions: data.substitutions,
+        tips: data.tips.length > 0 ? data.tips : undefined,
+      });
+      toast.success("Recipe updated successfully!");
+      setIsEditing(false);
+    } catch (error) {
+      console.error("Failed to update recipe:", error);
+      toast.error("Failed to update recipe. Please try again.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
 
   if (recipe === undefined) {
     return (
@@ -95,21 +164,57 @@ export default function RecipePage() {
         />
 
         <main className="container mx-auto px-4 py-8 max-w-2xl">
+        {/* Edit Mode */}
+        {isEditing ? (
+          <div>
+            <div className="flex items-center justify-between mb-6">
+              <h1 className="text-2xl font-bold">Edit Recipe</h1>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditing(false)}
+              >
+                <X className="h-4 w-4 mr-1" />
+                Cancel
+              </Button>
+            </div>
+            <RecipeEditor
+              initialData={getEditorData()}
+              onSave={handleSave}
+              onCancel={() => setIsEditing(false)}
+              isEditing={true}
+              isSaving={isSaving}
+            />
+          </div>
+        ) : (
+          <>
         {/* Title Section */}
         <div className="bg-background rounded-lg border p-6 mb-6">
           <div className="flex items-start justify-between gap-3 mb-2">
             <h1 className="text-2xl font-bold">{recipe.title}</h1>
-            {recipe.isPublished ? (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700 flex-shrink-0">
-                <Globe className="h-3 w-3" />
-                Public
-              </span>
-            ) : (
-              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground flex-shrink-0">
-                <Lock className="h-3 w-3" />
-                Private
-              </span>
-            )}
+            <div className="flex items-center gap-2 flex-shrink-0">
+              {isOwner && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setIsEditing(true)}
+                >
+                  <Pencil className="h-3 w-3 mr-1" />
+                  Edit
+                </Button>
+              )}
+              {recipe.isPublished ? (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-green-100 text-green-700">
+                  <Globe className="h-3 w-3" />
+                  Public
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs bg-muted text-muted-foreground">
+                  <Lock className="h-3 w-3" />
+                  Private
+                </span>
+              )}
+            </div>
           </div>
           <p className="text-muted-foreground mb-4">{recipe.description}</p>
 
@@ -251,6 +356,8 @@ export default function RecipePage() {
               ))}
             </ul>
           </div>
+        )}
+          </>
         )}
         </main>
       </div>

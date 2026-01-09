@@ -162,3 +162,127 @@ export const deleteRecipe = mutation({
     await ctx.db.delete(args.id);
   },
 });
+
+// Update an existing recipe (owner only)
+export const updateRecipe = mutation({
+  args: {
+    id: v.id("recipes"),
+    title: v.string(),
+    description: v.string(),
+    prepTime: v.number(),
+    cookTime: v.number(),
+    servings: v.number(),
+    equipmentUsed: v.array(v.string()),
+    shoppingList: v.object({
+      have: v.array(v.string()),
+      need: v.array(v.string()),
+      optional: v.array(v.string()),
+    }),
+    prepGroup: v.array(
+      v.object({
+        task: v.string(),
+        ingredients: v.array(v.string()),
+      })
+    ),
+    steps: v.array(
+      v.object({
+        number: v.number(),
+        instruction: v.string(),
+        duration: v.optional(v.number()),
+        equipment: v.optional(v.string()),
+      })
+    ),
+    substitutions: v.array(
+      v.object({
+        original: v.string(),
+        substitute: v.string(),
+        note: v.optional(v.string()),
+      })
+    ),
+    tips: v.optional(v.array(v.string())),
+  },
+  handler: async (ctx, args) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+
+    const recipe = await ctx.db.get(args.id);
+    if (!recipe) throw new Error("Recipe not found");
+    if (recipe.userId !== user._id) throw new Error("Not authorized");
+
+    const { id, ...updates } = args;
+    await ctx.db.patch(id, updates);
+
+    return id;
+  },
+});
+
+// Create a new recipe manually (not AI-generated)
+export const createRecipe = mutation({
+  args: {
+    title: v.string(),
+    description: v.string(),
+    prepTime: v.number(),
+    cookTime: v.number(),
+    servings: v.number(),
+    equipmentUsed: v.array(v.string()),
+    shoppingList: v.object({
+      have: v.array(v.string()),
+      need: v.array(v.string()),
+      optional: v.array(v.string()),
+    }),
+    prepGroup: v.array(
+      v.object({
+        task: v.string(),
+        ingredients: v.array(v.string()),
+      })
+    ),
+    steps: v.array(
+      v.object({
+        number: v.number(),
+        instruction: v.string(),
+        duration: v.optional(v.number()),
+        equipment: v.optional(v.string()),
+      })
+    ),
+    substitutions: v.array(
+      v.object({
+        original: v.string(),
+        substitute: v.string(),
+        note: v.optional(v.string()),
+      })
+    ),
+    tips: v.optional(v.array(v.string())),
+  },
+  handler: async (ctx, args) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+
+    // Build inputs from the recipe data (for consistency with AI-generated recipes)
+    const inputs = {
+      equipment: args.equipmentUsed,
+      ingredients: [
+        ...args.shoppingList.have,
+        ...args.shoppingList.need,
+      ],
+      servings: args.servings,
+      maxTime: args.prepTime + args.cookTime,
+    };
+
+    return await ctx.db.insert("recipes", {
+      userId: user._id,
+      title: args.title,
+      description: args.description,
+      inputs,
+      prepTime: args.prepTime,
+      cookTime: args.cookTime,
+      servings: args.servings,
+      equipmentUsed: args.equipmentUsed,
+      shoppingList: args.shoppingList,
+      prepGroup: args.prepGroup,
+      steps: args.steps,
+      substitutions: args.substitutions,
+      tips: args.tips,
+      isPublished: false,
+    });
+  },
+});

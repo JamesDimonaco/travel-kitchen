@@ -17,6 +17,7 @@ import {
   Trash2,
   Loader2,
   Plus,
+  Pencil,
 } from "lucide-react";
 import type { Id } from "@/convex/_generated/dataModel";
 import { track, ANALYTICS_EVENTS } from "@/lib/analytics";
@@ -159,6 +160,13 @@ export default function MyRecipesPage() {
                   </div>
 
                   <div className="flex items-center gap-2 flex-shrink-0">
+                    <Link href={`/recipe/${recipe._id}?edit=true`}>
+                      <Button variant="outline" size="sm">
+                        <Pencil className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                    </Link>
+
                     <Button
                       variant="outline"
                       size="sm"
