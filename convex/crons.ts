@@ -4,9 +4,9 @@ import { internal } from "./_generated/api";
 const crons = cronJobs();
 
 // Run daily at 3am UTC to clean up expired anonymous recipes
-crons.daily(
+crons.cron(
   "cleanup-expired-recipes",
-  { hourUTC: 3, minuteUTC: 0 },
+  "0 3 * * *", // 3am UTC daily
   internal.cleanup.deleteExpiredRecipes
 );
 

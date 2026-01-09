@@ -29,7 +29,13 @@ export const deleteExpiredRecipes = internalMutation({
     // Find expired anonymous usage records
     const expiredUsage = await ctx.db
       .query("anonymousUsage")
-      .filter((q) => q.lt(q.field("expiresAt"), now))
+      .withIndex("by_expires")
+      .filter((q) =>
+        q.and(
+          q.neq(q.field("expiresAt"), undefined),
+          q.lt(q.field("expiresAt"), now)
+        )
+      )
       .collect();
 
     // Delete expired usage records

@@ -1,5 +1,5 @@
 import { v } from "convex/values";
-import { mutation, query } from "./_generated/server";
+import { internalMutation, mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
 
 // Constants
@@ -123,7 +123,7 @@ export const canGenerate = query({
     return {
       canGenerate: used < ANONYMOUS_LIMIT,
       reason: used >= ANONYMOUS_LIMIT
-        ? "Sign up to create more recipes! You get 2 more free AI generations."
+        ? `Sign up to create more recipes! You'll get ${FREE_TIER_LIMIT - used} more free AI generations.`
         : null,
       remaining,
       isAuthenticated: false,
@@ -295,17 +295,15 @@ export const claimAnonymousRecipes = mutation({
 
 /**
  * Add credits to a user (for Stripe integration)
+ * INTERNAL ONLY - called by Stripe webhook handler, not exposed to clients
  */
-export const addCredits = mutation({
+export const addCredits = internalMutation({
   args: {
     userId: v.string(),
     credits: v.number(),
     stripeCustomerId: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
-    // This would be called by a Stripe webhook handler
-    // For now, it's internal only
-
     const usage = await ctx.db
       .query("usageCredits")
       .withIndex("by_user", (q) => q.eq("userId", args.userId))

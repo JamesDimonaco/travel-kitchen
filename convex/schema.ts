@@ -87,7 +87,9 @@ export default defineSchema({
     aiGenerationsUsed: v.number(), // Max 1 for anonymous
     createdAt: v.number(),
     expiresAt: v.number(), // 30 days from creation
-  }).index("by_session", ["sessionId"]),
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_expires", ["expiresAt"]),
 
   // Recipe idea sessions - stores exploration sessions with multiple ideas
   recipeIdeaSessions: defineTable({

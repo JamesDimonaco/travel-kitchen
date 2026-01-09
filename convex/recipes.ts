@@ -113,7 +113,13 @@ export const getRecipe = query({
     if (user && user._id === recipe.userId) return recipe;
 
     // Check if anonymous user owns it (via sessionId)
-    if (args.sessionId && recipe.sessionId === args.sessionId) return recipe;
+    if (args.sessionId && recipe.sessionId === args.sessionId) {
+      // Check if anonymous recipe has expired
+      if (recipe.expiresAt && recipe.expiresAt < Date.now()) {
+        return null;
+      }
+      return recipe;
+    }
 
     return null;
   },
