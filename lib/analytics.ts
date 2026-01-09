@@ -30,6 +30,18 @@ export const ANALYTICS_EVENTS = {
   // Navigation
   PAGE_VIEWED: "page_viewed",
   TAB_SWITCHED: "tab_switched",
+
+  // LLM Observability (server-side tracked)
+  LLM_GENERATION_STARTED: "llm_generation_started",
+  LLM_GENERATION_COMPLETED: "llm_generation_completed",
+  LLM_GENERATION_FAILED: "llm_generation_failed",
+  LLM_CHAT_MESSAGE: "llm_chat_message",
+
+  // Performance
+  WEB_VITALS: "web_vitals",
+
+  // Errors
+  SERVER_ERROR: "server_error",
 } as const;
 
 type EventName = (typeof ANALYTICS_EVENTS)[keyof typeof ANALYTICS_EVENTS];

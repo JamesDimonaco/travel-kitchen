@@ -3,6 +3,10 @@ import { openai } from "@ai-sdk/openai";
 import { isAuthenticated } from "@/lib/auth-server";
 import { z } from "zod";
 import { EQUIPMENT_OPTIONS } from "@/lib/recipe-schema";
+import { trackLLMEvent, trackServerError } from "@/lib/posthog-server";
+
+const MODEL = "gpt-4o-mini";
+const ENDPOINT = "/api/ai/expand-idea";
 
 const expandInputSchema = z.object({
   idea: z.object({
@@ -50,6 +54,8 @@ const fullRecipeSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const startTime = Date.now();
+
   try {
     const authenticated = await isAuthenticated();
     if (!authenticated) {
@@ -129,8 +135,16 @@ Return ONLY valid JSON (no markdown, no code blocks) with this structure:
   "tips": ["helpful tip 1", "helpful tip 2"]
 }`;
 
+    // Track LLM generation started
+    await trackLLMEvent(undefined, "llm_generation_started", {
+      model: MODEL,
+      endpoint: ENDPOINT,
+      inputType: "expand_idea",
+      equipment: sessionInputs.equipment,
+    });
+
     const result = await generateText({
-      model: openai("gpt-4o-mini"),
+      model: openai(MODEL),
       system: `You are Traveler's Kitchen, a recipe assistant for travelers. Generate detailed, practical recipes that can be made in basic kitchens like hostels and guesthouses.`,
       prompt,
     });
@@ -153,6 +167,14 @@ Return ONLY valid JSON (no markdown, no code blocks) with this structure:
       recipeData = JSON.parse(cleanedText);
     } catch {
       console.error("Failed to parse AI response:", result.text);
+      await trackLLMEvent(undefined, "llm_generation_failed", {
+        model: MODEL,
+        endpoint: ENDPOINT,
+        inputType: "expand_idea",
+        durationMs: Date.now() - startTime,
+        errorType: "parse_error",
+        success: false,
+      });
       return Response.json(
         { error: "Failed to parse response. Please try again." },
         { status: 500 }
@@ -162,15 +184,39 @@ Return ONLY valid JSON (no markdown, no code blocks) with this structure:
     const recipeResult = fullRecipeSchema.safeParse(recipeData);
     if (!recipeResult.success) {
       console.error("Invalid recipe structure:", recipeResult.error);
+      await trackLLMEvent(undefined, "llm_generation_failed", {
+        model: MODEL,
+        endpoint: ENDPOINT,
+        inputType: "expand_idea",
+        durationMs: Date.now() - startTime,
+        errorType: "validation_error",
+        success: false,
+      });
       return Response.json(
         { error: "Generated recipe has invalid structure. Please try again." },
         { status: 500 }
       );
     }
 
+    // Track successful generation
+    await trackLLMEvent(undefined, "llm_generation_completed", {
+      model: MODEL,
+      endpoint: ENDPOINT,
+      inputType: "expand_idea",
+      durationMs: Date.now() - startTime,
+      inputTokens: result.usage?.inputTokens,
+      outputTokens: result.usage?.outputTokens,
+      totalTokens: result.usage?.totalTokens,
+      success: true,
+    });
+
     return Response.json({ fullRecipe: recipeResult.data });
   } catch (error) {
     console.error("Recipe expansion error:", error);
+    await trackServerError(undefined, error as Error, {
+      endpoint: ENDPOINT,
+      inputType: "expand_idea",
+    });
     return Response.json(
       { error: "An unexpected error occurred. Please try again." },
       { status: 500 }

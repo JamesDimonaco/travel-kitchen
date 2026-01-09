@@ -3,8 +3,14 @@ import { openai } from "@ai-sdk/openai";
 import { isAuthenticated } from "@/lib/auth-server";
 import { recipeFormSchema, recipeResponseSchema } from "@/lib/recipe-schema";
 import { RECIPE_SYSTEM_PROMPT, buildUserPrompt } from "@/lib/recipe-prompt";
+import { trackLLMEvent, trackServerError } from "@/lib/posthog-server";
+
+const MODEL = "gpt-4o-mini";
+const ENDPOINT = "/api/ai/new-receipe";
 
 export async function POST(req: Request) {
+  const startTime = Date.now();
+
   try {
     // Check authentication
     const authenticated = await isAuthenticated();
@@ -31,9 +37,19 @@ export async function POST(req: Request) {
     // Build the user prompt from form data
     const userPrompt = buildUserPrompt(formData);
 
+    // Track LLM generation started
+    await trackLLMEvent(undefined, "llm_generation_started", {
+      model: MODEL,
+      endpoint: ENDPOINT,
+      inputType: "recipe_generation",
+      equipment: formData.equipment,
+      dietaryPreferences: formData.diet,
+      ingredientCount: formData.ingredientsHave?.length || 0,
+    });
+
     // Generate recipe using AI
     const result = await generateText({
-      model: openai("gpt-4o-mini"),
+      model: openai(MODEL),
       system: RECIPE_SYSTEM_PROMPT,
       prompt: userPrompt,
     });
@@ -57,6 +73,15 @@ export async function POST(req: Request) {
       recipeData = JSON.parse(cleanedText);
     } catch {
       console.error("Failed to parse AI response:", result.text);
+      await trackLLMEvent(undefined, "llm_generation_failed", {
+        model: MODEL,
+        endpoint: ENDPOINT,
+        inputType: "recipe_generation",
+        durationMs: Date.now() - startTime,
+        errorType: "parse_error",
+        errorMessage: "Failed to parse AI response",
+        success: false,
+      });
       return Response.json(
         { error: "Failed to parse recipe response. Please try again." },
         { status: 500 }
@@ -67,11 +92,35 @@ export async function POST(req: Request) {
     const recipeResult = recipeResponseSchema.safeParse(recipeData);
     if (!recipeResult.success) {
       console.error("Invalid recipe structure:", recipeResult.error);
+      await trackLLMEvent(undefined, "llm_generation_failed", {
+        model: MODEL,
+        endpoint: ENDPOINT,
+        inputType: "recipe_generation",
+        durationMs: Date.now() - startTime,
+        errorType: "validation_error",
+        errorMessage: "Invalid recipe structure",
+        success: false,
+      });
       return Response.json(
         { error: "Generated recipe has invalid structure. Please try again." },
         { status: 500 }
       );
     }
+
+    // Track successful generation
+    await trackLLMEvent(undefined, "llm_generation_completed", {
+      model: MODEL,
+      endpoint: ENDPOINT,
+      inputType: "recipe_generation",
+      durationMs: Date.now() - startTime,
+      inputTokens: result.usage?.inputTokens,
+      outputTokens: result.usage?.outputTokens,
+      totalTokens: result.usage?.totalTokens,
+      equipment: formData.equipment,
+      dietaryPreferences: formData.diet,
+      ingredientCount: formData.ingredientsHave?.length || 0,
+      success: true,
+    });
 
     return Response.json({
       recipe: recipeResult.data,
@@ -79,6 +128,19 @@ export async function POST(req: Request) {
     });
   } catch (error) {
     console.error("Recipe generation error:", error);
+    await trackServerError(undefined, error as Error, {
+      endpoint: ENDPOINT,
+      inputType: "recipe_generation",
+    });
+    await trackLLMEvent(undefined, "llm_generation_failed", {
+      model: MODEL,
+      endpoint: ENDPOINT,
+      inputType: "recipe_generation",
+      durationMs: Date.now() - startTime,
+      errorType: "unexpected_error",
+      errorMessage: error instanceof Error ? error.message : "Unknown error",
+      success: false,
+    });
     return Response.json(
       { error: "An unexpected error occurred. Please try again." },
       { status: 500 }

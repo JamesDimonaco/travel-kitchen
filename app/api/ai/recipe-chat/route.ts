@@ -2,8 +2,14 @@ import { streamText } from "ai";
 import { openai } from "@ai-sdk/openai";
 import { isAuthenticated } from "@/lib/auth-server";
 import type { RecipeResponse } from "@/lib/recipe-schema";
+import { trackLLMEvent, trackServerError } from "@/lib/posthog-server";
+
+const MODEL = "gpt-4o-mini";
+const ENDPOINT = "/api/ai/recipe-chat";
 
 export async function POST(req: Request) {
+  const startTime = Date.now();
+
   try {
     const authenticated = await isAuthenticated();
     if (!authenticated) {
@@ -17,6 +23,14 @@ export async function POST(req: Request) {
       messages: { role: "user" | "assistant"; content: string }[];
       recipe: RecipeResponse;
     };
+
+    // Track chat message
+    await trackLLMEvent(undefined, "llm_chat_message", {
+      model: MODEL,
+      endpoint: ENDPOINT,
+      inputType: "chat",
+      isStreaming: true,
+    });
 
     const systemPrompt = `You are a helpful cooking assistant. The user has generated a recipe and wants to ask questions or make modifications.
 
@@ -44,14 +58,41 @@ INSTRUCTIONS:
 - Remember this is for travelers with limited kitchen equipment`;
 
     const result = streamText({
-      model: openai("gpt-4o-mini"),
+      model: openai(MODEL),
       system: systemPrompt,
       messages,
+      onFinish: async ({ usage }) => {
+        // Track completion after streaming finishes
+        await trackLLMEvent(undefined, "llm_generation_completed", {
+          model: MODEL,
+          endpoint: ENDPOINT,
+          inputType: "chat",
+          durationMs: Date.now() - startTime,
+          inputTokens: usage?.inputTokens,
+          outputTokens: usage?.outputTokens,
+          totalTokens: usage?.totalTokens,
+          isStreaming: true,
+          success: true,
+        });
+      },
     });
 
     return result.toTextStreamResponse();
   } catch (error) {
     console.error("Recipe chat error:", error);
+    await trackServerError(undefined, error as Error, {
+      endpoint: ENDPOINT,
+      inputType: "chat",
+    });
+    await trackLLMEvent(undefined, "llm_generation_failed", {
+      model: MODEL,
+      endpoint: ENDPOINT,
+      inputType: "chat",
+      durationMs: Date.now() - startTime,
+      errorType: "unexpected_error",
+      errorMessage: error instanceof Error ? error.message : "Unknown error",
+      success: false,
+    });
     return Response.json(
       { error: "An unexpected error occurred" },
       { status: 500 }

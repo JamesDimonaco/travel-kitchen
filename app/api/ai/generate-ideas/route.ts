@@ -3,6 +3,10 @@ import { openai } from "@ai-sdk/openai";
 import { isAuthenticated } from "@/lib/auth-server";
 import { z } from "zod";
 import { EQUIPMENT_OPTIONS } from "@/lib/recipe-schema";
+import { trackLLMEvent, trackServerError } from "@/lib/posthog-server";
+
+const MODEL = "gpt-4o-mini";
+const ENDPOINT = "/api/ai/generate-ideas";
 
 const ideasInputSchema = z.object({
   equipment: z.array(z.string()),
@@ -32,6 +36,8 @@ const ideasResponseSchema = z.object({
 });
 
 export async function POST(req: Request) {
+  const startTime = Date.now();
+
   try {
     const authenticated = await isAuthenticated();
     if (!authenticated) {
@@ -117,8 +123,17 @@ Return ONLY valid JSON (no markdown, no code blocks) with this structure:
   ]
 }`;
 
+    // Track LLM generation started
+    await trackLLMEvent(undefined, "llm_generation_started", {
+      model: MODEL,
+      endpoint: ENDPOINT,
+      inputType: "ideas_generation",
+      equipment: input.equipment,
+      dietaryPreferences: input.dietaryPreferences,
+    });
+
     const result = await generateText({
-      model: openai("gpt-4o-mini"),
+      model: openai(MODEL),
       system: `You are Traveler's Kitchen, a recipe assistant for travelers cooking with limited equipment. Generate creative but practical recipe ideas that can actually be made in basic kitchens like hostels and guesthouses.`,
       prompt,
     });
@@ -141,6 +156,14 @@ Return ONLY valid JSON (no markdown, no code blocks) with this structure:
       ideasData = JSON.parse(cleanedText);
     } catch {
       console.error("Failed to parse AI response:", result.text);
+      await trackLLMEvent(undefined, "llm_generation_failed", {
+        model: MODEL,
+        endpoint: ENDPOINT,
+        inputType: "ideas_generation",
+        durationMs: Date.now() - startTime,
+        errorType: "parse_error",
+        success: false,
+      });
       return Response.json(
         { error: "Failed to parse response. Please try again." },
         { status: 500 }
@@ -150,15 +173,40 @@ Return ONLY valid JSON (no markdown, no code blocks) with this structure:
     const ideasResult = ideasResponseSchema.safeParse(ideasData);
     if (!ideasResult.success) {
       console.error("Invalid ideas structure:", ideasResult.error);
+      await trackLLMEvent(undefined, "llm_generation_failed", {
+        model: MODEL,
+        endpoint: ENDPOINT,
+        inputType: "ideas_generation",
+        durationMs: Date.now() - startTime,
+        errorType: "validation_error",
+        success: false,
+      });
       return Response.json(
         { error: "Generated ideas have invalid structure. Please try again." },
         { status: 500 }
       );
     }
 
+    // Track successful generation
+    await trackLLMEvent(undefined, "llm_generation_completed", {
+      model: MODEL,
+      endpoint: ENDPOINT,
+      inputType: "ideas_generation",
+      durationMs: Date.now() - startTime,
+      inputTokens: result.usage?.inputTokens,
+      outputTokens: result.usage?.outputTokens,
+      totalTokens: result.usage?.totalTokens,
+      equipment: input.equipment,
+      success: true,
+    });
+
     return Response.json({ ideas: ideasResult.data.ideas });
   } catch (error) {
     console.error("Ideas generation error:", error);
+    await trackServerError(undefined, error as Error, {
+      endpoint: ENDPOINT,
+      inputType: "ideas_generation",
+    });
     return Response.json(
       { error: "An unexpected error occurred. Please try again." },
       { status: 500 }
