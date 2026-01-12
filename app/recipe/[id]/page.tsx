@@ -26,6 +26,7 @@ import {
   Lock,
   Pencil,
   X,
+  AlertTriangle,
 } from "lucide-react";
 import type { Id } from "@/convex/_generated/dataModel";
 import { RecipeSchema, BreadcrumbSchema } from "@/components/seo/structured-data";
@@ -59,6 +60,16 @@ export default function RecipePage() {
   const isOwner =
     (session?.user?.id && recipe?.userId === session.user.id) ||
     (sessionId && recipe?.sessionId === sessionId);
+
+  // Calculate days until expiration for anonymous recipes
+  const getDaysUntilExpiration = () => {
+    if (!recipe?.expiresAt) return null;
+    const daysLeft = Math.ceil((recipe.expiresAt - Date.now()) / (24 * 60 * 60 * 1000));
+    return Math.max(0, daysLeft);
+  };
+
+  const daysUntilExpiration = getDaysUntilExpiration();
+  const isAnonymousRecipe = recipe?.sessionId && !session;
 
   // Auto-enable edit mode if ?edit=true is in URL and user is owner
   useEffect(() => {
@@ -203,7 +214,7 @@ export default function RecipePage() {
           <div className="flex items-start justify-between gap-3 mb-2">
             <h1 className="text-2xl font-bold">{recipe.title}</h1>
             <div className="flex items-center gap-2 flex-shrink-0">
-              {isOwner && (
+              {isOwner && session && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -243,6 +254,23 @@ export default function RecipePage() {
             </div>
           </div>
         </div>
+
+        {/* Expiration warning for anonymous recipes */}
+        {isAnonymousRecipe && daysUntilExpiration !== null && (
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-4 mb-6">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-amber-900 dark:text-amber-200">
+                  This recipe expires in {daysUntilExpiration} day{daysUntilExpiration !== 1 ? "s" : ""}
+                </p>
+                <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                  <Link href="/sign-up" className="underline font-medium">Sign up</Link> to keep it forever and unlock more features like recipe chat and publishing.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Shopping List */}
         <div className="bg-background rounded-lg border p-6 mb-6">

@@ -17,10 +17,15 @@ import {
   ShoppingCart,
   ListChecks,
   Lightbulb,
+  AlertTriangle,
+  MessageSquare,
 } from "lucide-react";
 import type { RecipeResponse, RecipeFormData } from "@/lib/recipe-schema";
 import RecipeChat from "./recipe-chat";
 import { track, ANALYTICS_EVENTS } from "@/lib/analytics";
+
+// 30 days in milliseconds
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 interface RecipeResultProps {
   recipe: RecipeResponse;
@@ -41,8 +46,17 @@ export default function RecipeResult({
 }: RecipeResultProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
   const [isUpdatingRecipe, setIsUpdatingRecipe] = useState(false);
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
+
+  // Calculate days until expiration for anonymous users
+  const getDaysUntilExpiration = () => {
+    if (!savedAt || isAuthenticated) return null;
+    const expiresAt = savedAt + THIRTY_DAYS_MS;
+    const daysLeft = Math.ceil((expiresAt - Date.now()) / (24 * 60 * 60 * 1000));
+    return Math.max(0, daysLeft);
+  };
 
   const saveRecipe = useMutation(api.recipes.saveRecipe);
   const saveAnonymousRecipe = useMutation(api.recipes.saveAnonymousRecipe);
@@ -109,6 +123,7 @@ export default function RecipeResult({
         await saveRecipe(recipeData);
       } else if (sessionId) {
         await saveAnonymousRecipe({ ...recipeData, sessionId });
+        setSavedAt(Date.now());
       }
 
       setIsSaved(true);
@@ -389,7 +404,24 @@ export default function RecipeResult({
           </div>
         )}
 
-        {/* Recipe Chat - only show if not saved yet */}
+        {/* Expiration warning for anonymous users who saved */}
+        {isSaved && !isAuthenticated && savedAt && (
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-4 mt-6">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-amber-900 dark:text-amber-200">
+                  This recipe expires in {getDaysUntilExpiration()} day{getDaysUntilExpiration() !== 1 ? "s" : ""}
+                </p>
+                <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                  <Link href="/sign-up" className="underline font-medium">Sign up</Link> to keep it forever and unlock more features.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Recipe Chat - only show if not saved yet and authenticated */}
         {!isSaved && isAuthenticated && onRecipeUpdate && (
           <div className="mt-6">
             <RecipeChat
@@ -398,6 +430,21 @@ export default function RecipeResult({
               onRecipeUpdate={handleRecipeUpdate}
               onUpdatingStart={handleUpdatingStart}
             />
+          </div>
+        )}
+
+        {/* Chat sign-up prompt for anonymous users */}
+        {!isAuthenticated && !isSaved && (
+          <div className="bg-muted/50 rounded-lg border p-6 mt-6">
+            <div className="flex items-start gap-3">
+              <MessageSquare className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-medium">Chat with your recipe</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  <Link href="/sign-up" className="text-primary underline">Sign up</Link> to chat with your recipe and get cooking tips, substitution ideas, and step-by-step guidance.
+                </p>
+              </div>
+            </div>
           </div>
         )}
 

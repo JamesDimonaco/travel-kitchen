@@ -621,9 +621,9 @@ export default function SingleRecipeForm({
         {!isAuthenticated && !sessionPending && usageCheck && (
           <p className="text-sm text-muted-foreground text-center mb-3">
             {usageCheck.canGenerate ? (
-              <>Try your first recipe free! <Link href="/sign-in" className="text-primary underline">Sign up</Link> to save and get 2 more.</>
+              <>Create your first recipe free! <Link href="/sign-up" className="text-primary underline">Sign up</Link> to keep it and unlock 2 more.</>
             ) : (
-              <><Link href="/sign-in" className="text-primary underline">Sign up</Link> to create more recipes and save them!</>
+              <>You&apos;ve used your free recipe. <Link href="/sign-up" className="text-primary underline">Sign up</Link> to unlock 2 more!</>
             )}
           </p>
         )}

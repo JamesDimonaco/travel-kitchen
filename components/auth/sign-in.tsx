@@ -33,18 +33,30 @@ export default function SignIn() {
   const claimAnonymousRecipes = useMutation(api.usage.claimAnonymousRecipes);
 
   // Claim any anonymous recipes after successful sign-in
-  const handleClaimRecipes = useCallback(async () => {
+  // Uses retry with delay since Convex auth needs time to sync after Better Auth sign-in
+  const handleClaimRecipes = useCallback(async (retries = 3, delay = 1500) => {
     const sessionId = getSessionId();
-    if (sessionId) {
+    if (!sessionId) return;
+
+    // Initial delay to let Convex auth sync
+    await new Promise((resolve) => setTimeout(resolve, delay));
+
+    for (let attempt = 0; attempt < retries; attempt++) {
       try {
+        if (attempt > 0) {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
         const result = await claimAnonymousRecipes({ sessionId });
         if (result.claimed > 0) {
           toast.success(`${result.claimed} recipe${result.claimed > 1 ? "s" : ""} added to your account!`);
-          clearSessionId();
         }
-      } catch (error) {
-        console.error("Failed to claim recipes:", error);
-        // Don't show error to user - claiming is a background enhancement
+        clearSessionId();
+        return; // Success, exit
+      } catch {
+        // If last attempt, give up silently (don't log expected auth timing issues)
+        if (attempt === retries - 1) {
+          // Silent failure - claiming is a background enhancement
+        }
       }
     }
   }, [claimAnonymousRecipes]);

@@ -15,7 +15,12 @@ const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 export const getMyUsage = query({
   args: {},
   handler: async (ctx) => {
-    const user = await authComponent.getAuthUser(ctx);
+    let user;
+    try {
+      user = await authComponent.getAuthUser(ctx);
+    } catch {
+      return null; // Not authenticated
+    }
     if (!user) return null;
 
     const usage = await ctx.db
@@ -80,7 +85,12 @@ export const getAnonymousUsage = query({
 export const canGenerate = query({
   args: { sessionId: v.optional(v.string()) },
   handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx);
+    let user;
+    try {
+      user = await authComponent.getAuthUser(ctx);
+    } catch {
+      user = null; // Not authenticated
+    }
 
     if (user) {
       // Authenticated user

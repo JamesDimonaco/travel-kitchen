@@ -26,21 +26,35 @@ export function RecipeClaimHandler() {
     // Mark as claimed to prevent multiple attempts
     hasClaimedRef.current = true;
 
-    // Attempt to claim recipes
-    claimAnonymousRecipes({ sessionId })
-      .then((result) => {
-        if (result.claimed > 0) {
-          toast.success(
-            `${result.claimed} recipe${result.claimed > 1 ? "s" : ""} added to your account!`
-          );
+    // Attempt to claim recipes with retry logic
+    // Convex auth may take time to sync after OAuth redirect
+    const attemptClaim = async (retries = 3, delay = 1500) => {
+      // Initial delay to let Convex auth sync
+      await new Promise((resolve) => setTimeout(resolve, delay));
+
+      for (let attempt = 0; attempt < retries; attempt++) {
+        try {
+          if (attempt > 0) {
+            await new Promise((resolve) => setTimeout(resolve, delay));
+          }
+          const result = await claimAnonymousRecipes({ sessionId });
+          if (result.claimed > 0) {
+            toast.success(
+              `${result.claimed} recipe${result.claimed > 1 ? "s" : ""} added to your account!`
+            );
+          }
           clearSessionId();
+          return; // Success
+        } catch {
+          if (attempt === retries - 1) {
+            // Silent failure - allow retry on next page load
+            hasClaimedRef.current = false;
+          }
         }
-      })
-      .catch((error) => {
-        console.error("Failed to claim recipes:", error);
-        // Reset so user can try again on next page load
-        hasClaimedRef.current = false;
-      });
+      }
+    };
+
+    attemptClaim();
   }, [session, claimAnonymousRecipes]);
 
   // This component doesn't render anything

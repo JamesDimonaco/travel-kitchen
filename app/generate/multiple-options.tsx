@@ -4,15 +4,16 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Sparkles, Trash2, RefreshCw } from "lucide-react";
+import { Loader2, Sparkles, Trash2, RefreshCw, Lock } from "lucide-react";
 import RecipeIdeasForm, { type IdeasFormData } from "./recipe-ideas-form";
 import RecipeIdeaCard, { type RecipeIdea } from "./recipe-idea-card";
 import RecipeIdeaDialog from "./recipe-idea-dialog";
 import type { Id } from "@/convex/_generated/dataModel";
 import { track, ANALYTICS_EVENTS } from "@/lib/analytics";
-import { getAuthCookie } from "@/lib/auth-client";
+import { getAuthCookie, useSession } from "@/lib/auth-client";
 
 interface FullRecipe {
   shopping: {
@@ -34,6 +35,7 @@ interface FullRecipe {
 }
 
 export default function MultipleOptions() {
+  const { data: session, isPending: sessionPending } = useSession();
   const [sessionId, setSessionId] = useState<Id<"recipeIdeaSessions"> | null>(null);
   const [sessionInputs, setSessionInputs] = useState<IdeasFormData | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -41,6 +43,8 @@ export default function MultipleOptions() {
   const [moreContext, setMoreContext] = useState("");
   const [selectedIdea, setSelectedIdea] = useState<RecipeIdea | null>(null);
   const [expandingIdeaId, setExpandingIdeaId] = useState<Id<"recipeIdeas"> | null>(null);
+
+  const isAuthenticated = !!session;
 
   // Queries
   const activeSession = useQuery(api.recipeIdeas.getActiveSession);
@@ -176,6 +180,44 @@ export default function MultipleOptions() {
     // Update local state so the card shows "View Full Recipe"
     setExpandingIdeaId(null);
   };
+
+  // Show loading state
+  if (sessionPending) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  // Show sign-up prompt for anonymous users
+  if (!isAuthenticated) {
+    return (
+      <div className="bg-background rounded-lg border p-8 text-center">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
+          <Lock className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h2 className="text-xl font-semibold mb-2">Explore Multiple Recipe Ideas</h2>
+        <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+          Sign up to explore multiple recipe ideas at once! Enter your ingredients and constraints,
+          and we&apos;ll generate several recipe options for you to choose from.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Link href="/sign-up">
+            <Button size="lg">
+              <Sparkles className="h-4 w-4 mr-2" />
+              Sign Up to Explore Ideas
+            </Button>
+          </Link>
+          <Link href="/sign-in">
+            <Button variant="outline" size="lg">
+              Already have an account? Sign in
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   // Show form if no active session with ideas
   if (!sessionId || !sessionIdeas || sessionIdeas.length === 0) {

@@ -4,7 +4,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
+import { useQuery } from "convex/react";
+import { api } from "@/convex/_generated/api";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import {
   Sheet,
   SheetContent,
@@ -32,6 +35,7 @@ import {
   MoreVertical,
   Moon,
   Sun,
+  Sparkles,
 } from "lucide-react";
 import { useTheme } from "next-themes";
 import { track, resetUser, ANALYTICS_EVENTS } from "@/lib/analytics";
@@ -48,6 +52,9 @@ export function Header({ title, centerContent, rightContent }: HeaderProps) {
   const isHome = pathname === "/";
   const [sheetOpen, setSheetOpen] = useState(false);
   const { setTheme, theme } = useTheme();
+
+  // Get usage for authenticated users (skip query if not logged in)
+  const usage = useQuery(api.usage.getMyUsage, session ? {} : "skip");
 
   const handleSignOutClick = () => {
     track(ANALYTICS_EVENTS.USER_SIGNED_OUT);
@@ -108,6 +115,16 @@ export function Header({ title, centerContent, rightContent }: HeaderProps) {
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : session ? (
             <>
+              {/* Usage credits badge */}
+              {usage && (
+                <Link href="/generate" className="hidden sm:block">
+                  <Badge variant="outline" className="gap-1.5 px-2.5 py-1">
+                    <Sparkles className="h-3 w-3" />
+                    {usage.aiGenerationsRemaining} left
+                  </Badge>
+                </Link>
+              )}
+
               {/* Desktop: Show nav items on home, dropdown on other pages */}
               {isHome ? (
                 <nav className="hidden md:flex items-center gap-1">
@@ -183,6 +200,21 @@ export function Header({ title, centerContent, rightContent }: HeaderProps) {
                     </SheetTitle>
                   </SheetHeader>
                   <nav className="flex flex-col gap-2 mt-6">
+                    {/* Usage credits for mobile */}
+                    {usage && (
+                      <>
+                        <Link href="/generate" onClick={() => setSheetOpen(false)}>
+                          <div className="flex items-center justify-between p-3 rounded-lg bg-muted">
+                            <span className="text-sm text-muted-foreground">AI Credits</span>
+                            <Badge variant="outline" className="gap-1.5">
+                              <Sparkles className="h-3 w-3" />
+                              {usage.aiGenerationsRemaining} left
+                            </Badge>
+                          </div>
+                        </Link>
+                        <div className="border-t my-2" />
+                      </>
+                    )}
                     {navItems.map((item) => (
                       <Link
                         key={item.href}
