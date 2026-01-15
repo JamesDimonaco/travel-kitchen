@@ -113,12 +113,8 @@ export default function MultipleOptions() {
         ideas,
       });
 
-      // Record usage after successful generation
-      try {
-        await recordGeneration();
-      } catch (usageError) {
-        console.error("Failed to record usage:", usageError);
-      }
+      // Record usage after successful generation - rethrow if fails to enforce limits
+      await recordGeneration();
 
       track(ANALYTICS_EVENTS.IDEAS_GENERATED, { count: ideas.length });
       toast.success(`Generated ${ideas.length} recipe ideas!`);
@@ -178,12 +174,8 @@ export default function MultipleOptions() {
         ideas,
       });
 
-      // Record usage after successful generation
-      try {
-        await recordGeneration();
-      } catch (usageError) {
-        console.error("Failed to record usage:", usageError);
-      }
+      // Record usage after successful generation - rethrow if fails to enforce limits
+      await recordGeneration();
 
       setMoreContext("");
       track(ANALYTICS_EVENTS.MORE_IDEAS_REQUESTED, { count: ideas.length });

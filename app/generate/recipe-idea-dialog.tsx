@@ -103,12 +103,20 @@ export default function RecipeIdeaDialog({
   // Check if this will use a credit (not the first generation AND idea doesn't have recipe)
   const willUseCredit = fullRecipesGenerated >= 1 && !hasExistingFullRecipe;
 
+  // Check if we're still loading usage info (undefined = loading, null = not authenticated)
+  const isUsageLoading = usageCheck === undefined;
+
   const handleGenerateFullRecipe = async () => {
     if (!idea || !sessionInputs || !sessionId) return;
 
     // If this will use a credit, check if user has credits available first
     if (willUseCredit) {
-      // Verify user has credits before showing warning dialog
+      // Wait for usage check to load - don't proceed while loading
+      if (isUsageLoading) {
+        toast.info("Please wait while we check your available credits...");
+        return;
+      }
+      // Now check if user actually has credits (usageCheck could be null if not authenticated)
       if (!usageCheck || usageCheck.aiGenerationsRemaining <= 0) {
         toast.error("You've used all your AI generations. Purchase more credits to continue.");
         return;
@@ -239,6 +247,10 @@ export default function RecipeIdeaDialog({
   };
 
   const handleClose = () => {
+    // Reset all transient UI state to avoid leaking state
+    setIsGenerating(false);
+    setIsSaving(false);
+    setShowCreditWarning(false);
     setSavedRecipeId(null);
     setFullRecipe(null);
     onClose();
