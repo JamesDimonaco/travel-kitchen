@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Sparkles, Trash2, RefreshCw, Lock } from "lucide-react";
+import { Loader2, Sparkles, Trash2, Lock } from "lucide-react";
 import RecipeIdeasForm, { type IdeasFormData } from "./recipe-ideas-form";
 import RecipeIdeaCard, { type RecipeIdea } from "./recipe-idea-card";
 import RecipeIdeaDialog from "./recipe-idea-dialog";
@@ -38,6 +38,7 @@ export default function MultipleOptions() {
   const { data: session, isPending: sessionPending } = useSession();
   const [sessionId, setSessionId] = useState<Id<"recipeIdeaSessions"> | null>(null);
   const [sessionInputs, setSessionInputs] = useState<IdeasFormData | null>(null);
+  const [fullRecipesGenerated, setFullRecipesGenerated] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingMore, setIsGeneratingMore] = useState(false);
   const [moreContext, setMoreContext] = useState("");
@@ -52,21 +53,30 @@ export default function MultipleOptions() {
     api.recipeIdeas.getSessionIdeas,
     sessionId ? { sessionId } : "skip"
   );
+  const usageCheck = useQuery(api.usage.getMyUsage);
 
   // Mutations
   const createSession = useMutation(api.recipeIdeas.createSession);
   const addIdeas = useMutation(api.recipeIdeas.addIdeas);
   const clearSession = useMutation(api.recipeIdeas.clearSession);
+  const recordGeneration = useMutation(api.usage.recordGeneration);
 
   // Load active session on mount
   useEffect(() => {
     if (activeSession) {
       setSessionId(activeSession._id);
       setSessionInputs(activeSession.inputs as IdeasFormData);
+      setFullRecipesGenerated(activeSession.fullRecipesGenerated || 0);
     }
   }, [activeSession]);
 
   const handleGenerate = async (data: IdeasFormData) => {
+    // Check if user has credits
+    if (usageCheck && usageCheck.aiGenerationsRemaining <= 0) {
+      toast.error("You've used all your AI generations. Purchase more credits to continue.");
+      return;
+    }
+
     setIsGenerating(true);
     try {
       // Create new session
@@ -97,6 +107,13 @@ export default function MultipleOptions() {
         ideas,
       });
 
+      // Record usage after successful generation
+      try {
+        await recordGeneration();
+      } catch (usageError) {
+        console.error("Failed to record usage:", usageError);
+      }
+
       track(ANALYTICS_EVENTS.IDEAS_GENERATED, { count: ideas.length });
       toast.success(`Generated ${ideas.length} recipe ideas!`);
     } catch (error) {
@@ -112,6 +129,12 @@ export default function MultipleOptions() {
 
   const handleGenerateMore = async () => {
     if (!sessionId || !sessionInputs) return;
+
+    // Check if user has credits
+    if (usageCheck && usageCheck.aiGenerationsRemaining <= 0) {
+      toast.error("You've used all your AI generations. Purchase more credits to continue.");
+      return;
+    }
 
     setIsGeneratingMore(true);
     try {
@@ -142,6 +165,13 @@ export default function MultipleOptions() {
         sessionId,
         ideas,
       });
+
+      // Record usage after successful generation
+      try {
+        await recordGeneration();
+      } catch (usageError) {
+        console.error("Failed to record usage:", usageError);
+      }
 
       setMoreContext("");
       track(ANALYTICS_EVENTS.MORE_IDEAS_REQUESTED, { count: ideas.length });
@@ -176,8 +206,9 @@ export default function MultipleOptions() {
     setSelectedIdea(idea);
   };
 
-  const handleRecipeGenerated = (ideaId: Id<"recipeIdeas">, fullRecipe: FullRecipe) => {
-    // Update local state so the card shows "View Full Recipe"
+  const handleRecipeGenerated = (ideaId: Id<"recipeIdeas">, fullRecipe: FullRecipe, newCount: number) => {
+    // Update the local count from the database response
+    setFullRecipesGenerated(newCount);
     setExpandingIdeaId(null);
   };
 
@@ -301,9 +332,11 @@ export default function MultipleOptions() {
       {/* Recipe dialog */}
       <RecipeIdeaDialog
         idea={selectedIdea}
+        sessionId={sessionId}
         sessionInputs={sessionInputs}
         onClose={() => setSelectedIdea(null)}
         onRecipeGenerated={handleRecipeGenerated}
+        fullRecipesGenerated={fullRecipesGenerated}
       />
     </div>
   );

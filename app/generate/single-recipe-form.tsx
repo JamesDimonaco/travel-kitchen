@@ -122,6 +122,16 @@ export default function SingleRecipeForm({
     onSubmit: async ({ value }) => {
       await handleGenerate(value);
     },
+    onSubmitInvalid: () => {
+      toast.error("Please complete required fields");
+      // Scroll to first error field
+      setTimeout(() => {
+        const firstError = document.querySelector('[data-invalid="true"]');
+        if (firstError) {
+          firstError.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 50);
+    },
   });
 
   // Helper to toggle items in an array field

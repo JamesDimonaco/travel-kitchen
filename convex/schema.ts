@@ -104,6 +104,8 @@ export default defineSchema({
       additionalIngredients: v.optional(v.array(v.string())),
       timeLimit: v.optional(v.number()),
     }),
+    // Track how many full recipes have been expanded (first one is free)
+    fullRecipesGenerated: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),

@@ -9,6 +9,16 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import {
   Clock,
   Users,
   ChefHat,
@@ -18,6 +28,7 @@ import {
   Loader2,
   Plus,
   Pencil,
+  AlertTriangle,
 } from "lucide-react";
 import type { Id } from "@/convex/_generated/dataModel";
 import { track, ANALYTICS_EVENTS } from "@/lib/analytics";
@@ -32,6 +43,11 @@ export default function MyRecipesPage() {
 
   const [togglingId, setTogglingId] = useState<Id<"recipes"> | null>(null);
   const [deletingId, setDeletingId] = useState<Id<"recipes"> | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [recipeToDelete, setRecipeToDelete] = useState<{
+    id: Id<"recipes">;
+    title: string;
+  } | null>(null);
 
   // Redirect to home if not authenticated
   if (!isSessionPending && !session?.user) {
@@ -57,12 +73,19 @@ export default function MyRecipesPage() {
     }
   };
 
-  const handleDelete = async (id: Id<"recipes">, title: string) => {
-    if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
+  const openDeleteDialog = (id: Id<"recipes">, title: string) => {
+    setRecipeToDelete({ id, title });
+    setDeleteDialogOpen(true);
+  };
 
-    setDeletingId(id);
+  const handleDelete = async () => {
+    if (!recipeToDelete) return;
+
+    setDeletingId(recipeToDelete.id);
+    setDeleteDialogOpen(false);
+
     try {
-      await deleteRecipe({ id });
+      await deleteRecipe({ id: recipeToDelete.id });
       track(ANALYTICS_EVENTS.RECIPE_DELETED);
       toast.success("Recipe deleted");
     } catch (error) {
@@ -70,6 +93,7 @@ export default function MyRecipesPage() {
       console.error(error);
     } finally {
       setDeletingId(null);
+      setRecipeToDelete(null);
     }
   };
 
@@ -191,7 +215,7 @@ export default function MyRecipesPage() {
                     <Button
                       variant="ghost"
                       size="sm"
-                      onClick={() => handleDelete(recipe._id, recipe.title)}
+                      onClick={() => openDeleteDialog(recipe._id, recipe.title)}
                       disabled={deletingId === recipe._id}
                       className="text-destructive hover:text-destructive hover:bg-destructive/10"
                     >
@@ -208,6 +232,31 @@ export default function MyRecipesPage() {
           </div>
         )}
       </main>
+
+      {/* Delete confirmation dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              Delete Recipe?
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Are you sure you want to delete &ldquo;{recipeToDelete?.title}&rdquo;?
+              This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDelete}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

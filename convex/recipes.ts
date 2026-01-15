@@ -75,7 +75,12 @@ export const saveRecipe = mutation({
 export const listMyRecipes = query({
   args: {},
   handler: async (ctx) => {
-    const user = await authComponent.getAuthUser(ctx);
+    let user;
+    try {
+      user = await authComponent.getAuthUser(ctx);
+    } catch {
+      return []; // Not authenticated
+    }
     if (!user) return [];
 
     return await ctx.db
@@ -109,7 +114,12 @@ export const getRecipe = query({
     if (recipe.isPublished) return recipe;
 
     // Check if authenticated user owns it
-    const user = await authComponent.getAuthUser(ctx);
+    let user;
+    try {
+      user = await authComponent.getAuthUser(ctx);
+    } catch {
+      // Not authenticated, continue to check sessionId
+    }
     if (user && user._id === recipe.userId) return recipe;
 
     // Check if anonymous user owns it (via sessionId)
