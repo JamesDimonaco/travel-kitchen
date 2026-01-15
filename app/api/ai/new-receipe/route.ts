@@ -4,6 +4,8 @@ import { isAuthenticated } from "@/lib/auth-server";
 import { recipeFormSchema, recipeResponseSchema } from "@/lib/recipe-schema";
 import { RECIPE_SYSTEM_PROMPT, buildUserPrompt } from "@/lib/recipe-prompt";
 import { trackLLMEvent, trackServerError } from "@/lib/posthog-server";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
 
 const MODEL = "gpt-4o-mini";
 const ENDPOINT = "/api/ai/new-receipe";
@@ -22,6 +24,21 @@ export async function POST(req: Request) {
       return Response.json(
         { error: "You must be signed in or provide a session ID to generate recipes" },
         { status: 401 }
+      );
+    }
+
+    // Check usage limits BEFORE making expensive AI call
+    const usageCheck = await fetchQuery(api.usage.canGenerate, {
+      sessionId: !authenticated ? sessionId : undefined,
+    });
+
+    if (!usageCheck.canGenerate) {
+      return Response.json(
+        {
+          error: usageCheck.reason || "You've reached your generation limit",
+          code: "LIMIT_REACHED",
+        },
+        { status: 402 }
       );
     }
 

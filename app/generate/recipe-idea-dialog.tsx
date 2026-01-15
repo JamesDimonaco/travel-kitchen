@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { useMutation } from "convex/react";
+import { useMutation, useQuery } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -95,6 +95,7 @@ export default function RecipeIdeaDialog({
   );
   const recordGeneration = useMutation(api.usage.recordGeneration);
   const saveRecipe = useMutation(api.recipes.saveRecipe);
+  const usageCheck = useQuery(api.usage.getMyUsage);
 
   // Check if this idea already has a full recipe (from DB)
   const hasExistingFullRecipe = !!(idea?.fullRecipe);
@@ -105,8 +106,13 @@ export default function RecipeIdeaDialog({
   const handleGenerateFullRecipe = async () => {
     if (!idea || !sessionInputs || !sessionId) return;
 
-    // If this will use a credit, show warning first
+    // If this will use a credit, check if user has credits available first
     if (willUseCredit) {
+      // Verify user has credits before showing warning dialog
+      if (!usageCheck || usageCheck.aiGenerationsRemaining <= 0) {
+        toast.error("You've used all your AI generations. Purchase more credits to continue.");
+        return;
+      }
       setShowCreditWarning(true);
       return;
     }

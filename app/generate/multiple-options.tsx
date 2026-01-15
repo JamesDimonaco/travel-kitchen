@@ -71,8 +71,14 @@ export default function MultipleOptions() {
   }, [activeSession]);
 
   const handleGenerate = async (data: IdeasFormData) => {
+    // Block if usage check hasn't loaded yet
+    if (!usageCheck) {
+      toast.error("Please wait while we check your available credits...");
+      return;
+    }
+
     // Check if user has credits
-    if (usageCheck && usageCheck.aiGenerationsRemaining <= 0) {
+    if (usageCheck.aiGenerationsRemaining <= 0) {
       toast.error("You've used all your AI generations. Purchase more credits to continue.");
       return;
     }
@@ -130,8 +136,14 @@ export default function MultipleOptions() {
   const handleGenerateMore = async () => {
     if (!sessionId || !sessionInputs) return;
 
+    // Block if usage check hasn't loaded yet
+    if (!usageCheck) {
+      toast.error("Please wait while we check your available credits...");
+      return;
+    }
+
     // Check if user has credits
-    if (usageCheck && usageCheck.aiGenerationsRemaining <= 0) {
+    if (usageCheck.aiGenerationsRemaining <= 0) {
       toast.error("You've used all your AI generations. Purchase more credits to continue.");
       return;
     }

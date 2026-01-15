@@ -2,6 +2,14 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
 
+/**
+ * Authentication Pattern:
+ * - Queries: Use try/catch around getAuthUser and return null/empty for unauthenticated users.
+ *   This allows graceful handling of unauthenticated state without throwing errors.
+ * - Mutations: Call getAuthUser directly and throw if null. Mutations require authentication
+ *   and should fail loudly if the user is not authenticated.
+ */
+
 // Save a new recipe
 export const saveRecipe = mutation({
   args: {
