@@ -4,15 +4,16 @@ import { useState, useEffect } from "react";
 import { useQuery, useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Sparkles, Trash2, RefreshCw } from "lucide-react";
+import { Loader2, Sparkles, Trash2, Lock } from "lucide-react";
 import RecipeIdeasForm, { type IdeasFormData } from "./recipe-ideas-form";
 import RecipeIdeaCard, { type RecipeIdea } from "./recipe-idea-card";
 import RecipeIdeaDialog from "./recipe-idea-dialog";
 import type { Id } from "@/convex/_generated/dataModel";
 import { track, ANALYTICS_EVENTS } from "@/lib/analytics";
-import { getAuthCookie } from "@/lib/auth-client";
+import { getAuthCookie, useSession } from "@/lib/auth-client";
 
 interface FullRecipe {
   shopping: {
@@ -34,13 +35,17 @@ interface FullRecipe {
 }
 
 export default function MultipleOptions() {
+  const { data: session, isPending: sessionPending } = useSession();
   const [sessionId, setSessionId] = useState<Id<"recipeIdeaSessions"> | null>(null);
   const [sessionInputs, setSessionInputs] = useState<IdeasFormData | null>(null);
+  const [fullRecipesGenerated, setFullRecipesGenerated] = useState(0);
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGeneratingMore, setIsGeneratingMore] = useState(false);
   const [moreContext, setMoreContext] = useState("");
   const [selectedIdea, setSelectedIdea] = useState<RecipeIdea | null>(null);
   const [expandingIdeaId, setExpandingIdeaId] = useState<Id<"recipeIdeas"> | null>(null);
+
+  const isAuthenticated = !!session;
 
   // Queries
   const activeSession = useQuery(api.recipeIdeas.getActiveSession);
@@ -48,21 +53,36 @@ export default function MultipleOptions() {
     api.recipeIdeas.getSessionIdeas,
     sessionId ? { sessionId } : "skip"
   );
+  const usageCheck = useQuery(api.usage.getMyUsage);
 
   // Mutations
   const createSession = useMutation(api.recipeIdeas.createSession);
   const addIdeas = useMutation(api.recipeIdeas.addIdeas);
   const clearSession = useMutation(api.recipeIdeas.clearSession);
+  const recordGeneration = useMutation(api.usage.recordGeneration);
 
   // Load active session on mount
   useEffect(() => {
     if (activeSession) {
       setSessionId(activeSession._id);
       setSessionInputs(activeSession.inputs as IdeasFormData);
+      setFullRecipesGenerated(activeSession.fullRecipesGenerated || 0);
     }
   }, [activeSession]);
 
   const handleGenerate = async (data: IdeasFormData) => {
+    // Block if usage check hasn't loaded yet
+    if (!usageCheck) {
+      toast.error("Please wait while we check your available credits...");
+      return;
+    }
+
+    // Check if user has credits
+    if (usageCheck.aiGenerationsRemaining <= 0) {
+      toast.error("You've used all your AI generations. Purchase more credits to continue.");
+      return;
+    }
+
     setIsGenerating(true);
     try {
       // Create new session
@@ -93,6 +113,9 @@ export default function MultipleOptions() {
         ideas,
       });
 
+      // Record usage after successful generation - rethrow if fails to enforce limits
+      await recordGeneration();
+
       track(ANALYTICS_EVENTS.IDEAS_GENERATED, { count: ideas.length });
       toast.success(`Generated ${ideas.length} recipe ideas!`);
     } catch (error) {
@@ -108,6 +131,18 @@ export default function MultipleOptions() {
 
   const handleGenerateMore = async () => {
     if (!sessionId || !sessionInputs) return;
+
+    // Block if usage check hasn't loaded yet
+    if (!usageCheck) {
+      toast.error("Please wait while we check your available credits...");
+      return;
+    }
+
+    // Check if user has credits
+    if (usageCheck.aiGenerationsRemaining <= 0) {
+      toast.error("You've used all your AI generations. Purchase more credits to continue.");
+      return;
+    }
 
     setIsGeneratingMore(true);
     try {
@@ -138,6 +173,9 @@ export default function MultipleOptions() {
         sessionId,
         ideas,
       });
+
+      // Record usage after successful generation - rethrow if fails to enforce limits
+      await recordGeneration();
 
       setMoreContext("");
       track(ANALYTICS_EVENTS.MORE_IDEAS_REQUESTED, { count: ideas.length });
@@ -172,10 +210,49 @@ export default function MultipleOptions() {
     setSelectedIdea(idea);
   };
 
-  const handleRecipeGenerated = (ideaId: Id<"recipeIdeas">, fullRecipe: FullRecipe) => {
-    // Update local state so the card shows "View Full Recipe"
+  const handleRecipeGenerated = (ideaId: Id<"recipeIdeas">, fullRecipe: FullRecipe, newCount: number) => {
+    // Update the local count from the database response
+    setFullRecipesGenerated(newCount);
     setExpandingIdeaId(null);
   };
+
+  // Show loading state
+  if (sessionPending) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <div className="animate-pulse text-muted-foreground">Loading...</div>
+      </div>
+    );
+  }
+
+  // Show sign-up prompt for anonymous users
+  if (!isAuthenticated) {
+    return (
+      <div className="bg-background rounded-lg border p-8 text-center">
+        <div className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-muted mb-4">
+          <Lock className="h-8 w-8 text-muted-foreground" />
+        </div>
+        <h2 className="text-xl font-semibold mb-2">Explore Multiple Recipe Ideas</h2>
+        <p className="text-muted-foreground mb-6 max-w-md mx-auto">
+          Sign up to explore multiple recipe ideas at once! Enter your ingredients and constraints,
+          and we&apos;ll generate several recipe options for you to choose from.
+        </p>
+        <div className="flex flex-col sm:flex-row gap-3 justify-center">
+          <Link href="/sign-up">
+            <Button size="lg">
+              <Sparkles className="h-4 w-4 mr-2" />
+              Sign Up to Explore Ideas
+            </Button>
+          </Link>
+          <Link href="/sign-in">
+            <Button variant="outline" size="lg">
+              Already have an account? Sign in
+            </Button>
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   // Show form if no active session with ideas
   if (!sessionId || !sessionIdeas || sessionIdeas.length === 0) {
@@ -259,9 +336,11 @@ export default function MultipleOptions() {
       {/* Recipe dialog */}
       <RecipeIdeaDialog
         idea={selectedIdea}
+        sessionId={sessionId}
         sessionInputs={sessionInputs}
         onClose={() => setSelectedIdea(null)}
         onRecipeGenerated={handleRecipeGenerated}
+        fullRecipesGenerated={fullRecipesGenerated}
       />
     </div>
   );

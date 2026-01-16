@@ -2,11 +2,24 @@ import { v } from "convex/values";
 import { mutation, query } from "./_generated/server";
 import { authComponent } from "./auth";
 
+/**
+ * Authentication Pattern:
+ * - Queries: Use try/catch around getAuthUser and return null/empty for unauthenticated users.
+ *   This allows graceful handling of unauthenticated state without throwing errors.
+ * - Mutations: Call getAuthUser directly and throw if null. Mutations require authentication
+ *   and should fail loudly if the user is not authenticated.
+ */
+
 // Get or create the current user's active session
 export const getActiveSession = query({
   args: {},
   handler: async (ctx) => {
-    const user = await authComponent.getAuthUser(ctx);
+    let user;
+    try {
+      user = await authComponent.getAuthUser(ctx);
+    } catch {
+      return null; // Not authenticated
+    }
     if (!user) return null;
 
     // Get the most recent session
@@ -24,7 +37,12 @@ export const getActiveSession = query({
 export const getSessionIdeas = query({
   args: { sessionId: v.id("recipeIdeaSessions") },
   handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx);
+    let user;
+    try {
+      user = await authComponent.getAuthUser(ctx);
+    } catch {
+      return []; // Not authenticated
+    }
     if (!user) return [];
 
     // Verify session belongs to the current user
@@ -119,7 +137,12 @@ export const addIdeas = mutation({
 export const getIdea = query({
   args: { ideaId: v.id("recipeIdeas") },
   handler: async (ctx, args) => {
-    const user = await authComponent.getAuthUser(ctx);
+    let user;
+    try {
+      user = await authComponent.getAuthUser(ctx);
+    } catch {
+      return null; // Not authenticated
+    }
     if (!user) return null;
 
     const idea = await ctx.db.get(args.ideaId);
@@ -197,6 +220,31 @@ export const deleteSession = mutation({
 
     // Delete the session
     await ctx.db.delete(args.sessionId);
+  },
+});
+
+// Record that a full recipe was generated (tracks for credit usage)
+// Returns whether this generation used a credit (true if not the first)
+export const recordFullRecipeGenerated = mutation({
+  args: { sessionId: v.id("recipeIdeaSessions") },
+  handler: async (ctx, args) => {
+    const user = await authComponent.getAuthUser(ctx);
+    if (!user) throw new Error("Not authenticated");
+
+    const session = await ctx.db.get(args.sessionId);
+    if (!session || session.userId !== user._id) {
+      throw new Error("Session not found");
+    }
+
+    const currentCount = session.fullRecipesGenerated || 0;
+    const usedCredit = currentCount >= 1; // First one is free
+
+    await ctx.db.patch(args.sessionId, {
+      fullRecipesGenerated: currentCount + 1,
+      updatedAt: Date.now(),
+    });
+
+    return { usedCredit, totalGenerated: currentCount + 1 };
   },
 });
 

@@ -1,13 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import { useForm } from "@tanstack/react-form";
+import { z } from "zod";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Badge } from "@/components/ui/badge";
 import {
-  ChefHat,
+  Field,
+  FieldLabel,
+  FieldError,
+} from "@/components/ui/field";
+import {
   Loader2,
   Plus,
   X,
@@ -32,6 +38,21 @@ const BASE_INGREDIENTS = [
   "potatoes",
 ] as const;
 
+// Zod schema for form validation
+const ideasFormSchema = z.object({
+  equipment: z
+    .array(z.string())
+    .min(1, "Please select at least one piece of equipment"),
+  diet: z.array(z.string()),
+  allergies: z.array(z.string()),
+  country: z.string(),
+  baseIngredient: z.string(),
+  additionalIngredients: z.array(z.string()),
+  timeLimit: z.number().min(10).max(120),
+});
+
+type IdeasFormValues = z.infer<typeof ideasFormSchema>;
+
 export interface IdeasFormData {
   equipment: string[];
   dietaryPreferences?: string[];
@@ -51,87 +72,120 @@ export default function RecipeIdeasForm({
   onGenerate,
   isGenerating,
 }: RecipeIdeasFormProps) {
-  const [equipment, setEquipment] = useState<string[]>([]);
-  const [diet, setDiet] = useState<string[]>([]);
-  const [allergies, setAllergies] = useState<string[]>([]);
-  const [country, setCountry] = useState("");
-  const [baseIngredient, setBaseIngredient] = useState("");
-  const [additionalIngredients, setAdditionalIngredients] = useState<string[]>(
-    []
-  );
   const [ingredientInput, setIngredientInput] = useState("");
-  const [timeLimit, setTimeLimit] = useState(30);
 
-  const toggleArrayItem = (
-    arr: string[],
-    setArr: (arr: string[]) => void,
-    item: string
-  ) => {
-    if (arr.includes(item)) {
-      setArr(arr.filter((i) => i !== item));
-    } else {
-      setArr([...arr, item]);
-    }
+  const form = useForm({
+    defaultValues: {
+      equipment: [] as string[],
+      diet: [] as string[],
+      allergies: [] as string[],
+      country: "",
+      baseIngredient: "",
+      additionalIngredients: [] as string[],
+      timeLimit: 30,
+    } satisfies IdeasFormValues,
+    validators: {
+      onSubmit: ideasFormSchema,
+    },
+    onSubmit: async ({ value }) => {
+      const data: IdeasFormData = {
+        equipment: value.equipment,
+        dietaryPreferences: value.diet.length > 0 ? value.diet : undefined,
+        allergens: value.allergies.length > 0 ? value.allergies : undefined,
+        country: value.country || undefined,
+        baseIngredient: value.baseIngredient || undefined,
+        additionalIngredients:
+          value.additionalIngredients.length > 0 ? value.additionalIngredients : undefined,
+        timeLimit: value.timeLimit,
+      };
+      await onGenerate(data);
+    },
+    onSubmitInvalid: () => {
+      toast.error("Please complete required fields");
+      // Scroll to first error field
+      setTimeout(() => {
+        const firstError = document.querySelector('[data-invalid="true"]');
+        if (firstError) {
+          firstError.scrollIntoView({ behavior: "smooth", block: "center" });
+        }
+      }, 50);
+    },
+  });
+
+  // Helper to toggle items in an array field
+  const toggleArrayItem = (fieldName: keyof IdeasFormValues, item: string) => {
+    const current = form.getFieldValue(fieldName) as string[];
+    const updated = current.includes(item)
+      ? current.filter((i) => i !== item)
+      : [...current, item];
+    form.setFieldValue(fieldName, updated);
   };
 
   const addIngredient = (ingredient: string) => {
     const trimmed = ingredient.trim().toLowerCase();
-    if (trimmed && !additionalIngredients.includes(trimmed)) {
-      setAdditionalIngredients([...additionalIngredients, trimmed]);
+    const current = form.getFieldValue("additionalIngredients");
+    if (trimmed && !current.includes(trimmed)) {
+      form.setFieldValue("additionalIngredients", [...current, trimmed]);
     }
     setIngredientInput("");
   };
 
   const removeIngredient = (ingredient: string) => {
-    setAdditionalIngredients(
-      additionalIngredients.filter((i) => i !== ingredient)
+    const current = form.getFieldValue("additionalIngredients");
+    form.setFieldValue(
+      "additionalIngredients",
+      current.filter((i) => i !== ingredient)
     );
   };
 
-  const handleSubmit = async () => {
-    const data: IdeasFormData = {
-      equipment,
-      dietaryPreferences: diet.length > 0 ? diet : undefined,
-      allergens: allergies.length > 0 ? allergies : undefined,
-      country: country || undefined,
-      baseIngredient: baseIngredient || undefined,
-      additionalIngredients:
-        additionalIngredients.length > 0 ? additionalIngredients : undefined,
-      timeLimit,
-    };
-    await onGenerate(data);
-  };
-
-  const canGenerate = equipment.length > 0;
-
   return (
-    <div className="space-y-6">
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        form.handleSubmit();
+      }}
+      className="space-y-6"
+    >
       {/* Equipment Section */}
-      <section className="bg-background rounded-lg border p-6">
-        <h2 className="font-semibold text-lg mb-4">
-          What equipment do you have?
-        </h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
-          {EQUIPMENT_OPTIONS.map((option) => (
-            <label
-              key={option.id}
-              className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
-                equipment.includes(option.id)
-                  ? "bg-primary/10 border-primary"
-                  : "hover:bg-muted"
-              }`}
-            >
-              <Checkbox
-                checked={equipment.includes(option.id)}
-                onCheckedChange={() =>
-                  toggleArrayItem(equipment, setEquipment, option.id)
-                }
-              />
-              <span className="text-sm">{option.label}</span>
-            </label>
-          ))}
-        </div>
-      </section>
+      <form.Field
+        name="equipment"
+        children={(field) => {
+          const isInvalid = field.state.meta.isTouched && !field.state.meta.isValid;
+          return (
+            <section className="bg-background rounded-lg border p-6">
+              <Field data-invalid={isInvalid}>
+                <h2 className="font-semibold text-lg mb-1">
+                  What equipment do you have? <span className="text-destructive">*</span>
+                </h2>
+                {isInvalid && (
+                  <FieldError errors={field.state.meta.errors} className="mb-3" />
+                )}
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mt-4">
+                  {EQUIPMENT_OPTIONS.map((option) => (
+                    <label
+                      key={option.id}
+                      className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                        field.state.value.includes(option.id)
+                          ? "bg-primary/10 border-primary"
+                          : "hover:bg-muted"
+                      }`}
+                    >
+                      <Checkbox
+                        checked={field.state.value.includes(option.id)}
+                        onCheckedChange={() => {
+                          toggleArrayItem("equipment", option.id);
+                          field.handleBlur();
+                        }}
+                      />
+                      <span className="text-sm">{option.label}</span>
+                    </label>
+                  ))}
+                </div>
+              </Field>
+            </section>
+          );
+        }}
+      />
 
       {/* Base Ingredient */}
       <section className="bg-background rounded-lg border p-6">
@@ -142,26 +196,43 @@ export default function RecipeIdeasForm({
           Pick a base ingredient or type your own
         </p>
 
-        <div className="flex flex-wrap gap-2 mb-4">
-          {BASE_INGREDIENTS.map((ing) => (
-            <Button
-              key={ing}
-              type="button"
-              variant={baseIngredient === ing ? "default" : "outline"}
-              size="sm"
-              onClick={() =>
-                setBaseIngredient(baseIngredient === ing ? "" : ing)
-              }
-            >
-              {ing}
-            </Button>
-          ))}
-        </div>
+        <form.Subscribe
+          selector={(state) => state.values.baseIngredient}
+          children={(baseIngredient) => (
+            <>
+              <div className="flex flex-wrap gap-2 mb-4">
+                {BASE_INGREDIENTS.map((ing) => (
+                  <Button
+                    key={ing}
+                    type="button"
+                    variant={baseIngredient === ing ? "default" : "outline"}
+                    size="sm"
+                    onClick={() =>
+                      form.setFieldValue("baseIngredient", baseIngredient === ing ? "" : ing)
+                    }
+                  >
+                    {ing}
+                  </Button>
+                ))}
+              </div>
 
-        <Input
-          placeholder="Or type something else..."
-          value={baseIngredient}
-          onChange={(e) => setBaseIngredient(e.target.value)}
+              <form.Field
+                name="baseIngredient"
+                children={(field) => (
+                  <Input
+                    placeholder="Or type something else..."
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                      }
+                    }}
+                  />
+                )}
+              />
+            </>
+          )}
         />
       </section>
 
@@ -196,27 +267,32 @@ export default function RecipeIdeasForm({
           </Button>
         </div>
 
-        {additionalIngredients.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {additionalIngredients.map((ing) => (
-              <Badge key={ing} variant="secondary" className="gap-1 pr-1">
-                {ing}
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="h-4 w-4 p-0 hover:bg-transparent"
-                  onClick={() => removeIngredient(ing)}
-                >
-                  <X className="h-3 w-3" />
-                </Button>
-              </Badge>
-            ))}
-          </div>
-        )}
+        <form.Subscribe
+          selector={(state) => state.values.additionalIngredients}
+          children={(additionalIngredients) =>
+            additionalIngredients.length > 0 && (
+              <div className="flex flex-wrap gap-2">
+                {additionalIngredients.map((ing) => (
+                  <Badge key={ing} variant="secondary" className="gap-1 pr-1">
+                    {ing}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      className="h-4 w-4 p-0 hover:bg-transparent"
+                      onClick={() => removeIngredient(ing)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </Badge>
+                ))}
+              </div>
+            )
+          }
+        />
       </section>
 
-      {/* Diet & Allergies (collapsible) */}
+      {/* Diet & Allergies */}
       <section className="bg-background rounded-lg border p-6">
         <h2 className="font-semibold text-lg mb-4">Diet & Allergies</h2>
 
@@ -226,38 +302,46 @@ export default function RecipeIdeasForm({
               Dietary preferences
             </p>
             <div className="flex flex-wrap gap-2">
-              {DIET_OPTIONS.map((option) => (
-                <Button
-                  key={option.id}
-                  type="button"
-                  variant={diet.includes(option.id) ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => toggleArrayItem(diet, setDiet, option.id)}
-                >
-                  {option.label}
-                </Button>
-              ))}
+              <form.Subscribe
+                selector={(state) => state.values.diet}
+                children={(diet) =>
+                  DIET_OPTIONS.map((option) => (
+                    <Button
+                      key={option.id}
+                      type="button"
+                      variant={diet.includes(option.id) ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => toggleArrayItem("diet", option.id)}
+                    >
+                      {option.label}
+                    </Button>
+                  ))
+                }
+              />
             </div>
           </div>
 
           <div>
             <p className="text-sm text-muted-foreground mb-3">Allergies</p>
             <div className="flex flex-wrap gap-2">
-              {ALLERGY_OPTIONS.map((option) => (
-                <Button
-                  key={option.id}
-                  type="button"
-                  variant={
-                    allergies.includes(option.id) ? "destructive" : "outline"
-                  }
-                  size="sm"
-                  onClick={() =>
-                    toggleArrayItem(allergies, setAllergies, option.id)
-                  }
-                >
-                  {option.label}
-                </Button>
-              ))}
+              <form.Subscribe
+                selector={(state) => state.values.allergies}
+                children={(allergies) =>
+                  ALLERGY_OPTIONS.map((option) => (
+                    <Button
+                      key={option.id}
+                      type="button"
+                      variant={
+                        allergies.includes(option.id) ? "destructive" : "outline"
+                      }
+                      size="sm"
+                      onClick={() => toggleArrayItem("allergies", option.id)}
+                    >
+                      {option.label}
+                    </Button>
+                  ))
+                }
+              />
             </div>
           </div>
         </div>
@@ -267,32 +351,49 @@ export default function RecipeIdeasForm({
       <section className="bg-background rounded-lg border p-6">
         <div className="grid sm:grid-cols-2 gap-6">
           <div>
-            <Label htmlFor="country" className="text-sm font-medium">
-              Where are you? (optional)
-            </Label>
-            <Input
-              id="country"
-              placeholder="e.g., Thailand, Spain..."
-              value={country}
-              onChange={(e) => setCountry(e.target.value)}
-              className="mt-2"
+            <form.Field
+              name="country"
+              children={(field) => (
+                <Field>
+                  <FieldLabel htmlFor={field.name} className="text-sm font-medium">
+                    Where are you? (optional)
+                  </FieldLabel>
+                  <Input
+                    id={field.name}
+                    placeholder="e.g., Thailand, Spain..."
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                      }
+                    }}
+                    className="mt-2"
+                  />
+                </Field>
+              )}
             />
           </div>
 
           <div>
-            <Label className="text-sm font-medium">Max cooking time</Label>
+            <FieldLabel className="text-sm font-medium">Max cooking time</FieldLabel>
             <div className="flex gap-2 mt-2">
-              {[15, 30, 45, 60].map((time) => (
-                <Button
-                  key={time}
-                  type="button"
-                  variant={timeLimit === time ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setTimeLimit(time)}
-                >
-                  {time}m
-                </Button>
-              ))}
+              <form.Subscribe
+                selector={(state) => state.values.timeLimit}
+                children={(timeLimit) =>
+                  [15, 30, 45, 60].map((time) => (
+                    <Button
+                      key={time}
+                      type="button"
+                      variant={timeLimit === time ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => form.setFieldValue("timeLimit", time)}
+                    >
+                      {time}m
+                    </Button>
+                  ))
+                }
+              />
             </div>
           </div>
         </div>
@@ -301,8 +402,8 @@ export default function RecipeIdeasForm({
       {/* Generate Button */}
       <div className="sticky bottom-4 bg-background/95 backdrop-blur rounded-lg border p-4 shadow-lg">
         <Button
-          onClick={handleSubmit}
-          disabled={isGenerating || !canGenerate}
+          type="submit"
+          disabled={isGenerating}
           className="w-full"
           size="lg"
         >
@@ -318,12 +419,7 @@ export default function RecipeIdeasForm({
             </>
           )}
         </Button>
-        {!canGenerate && (
-          <p className="text-xs text-muted-foreground text-center mt-2">
-            Select at least one piece of equipment
-          </p>
-        )}
       </div>
-    </div>
+    </form>
   );
 }

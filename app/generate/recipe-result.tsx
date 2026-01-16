@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useMutation } from "convex/react";
 import { api } from "@/convex/_generated/api";
 import { toast } from "sonner";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -16,16 +17,22 @@ import {
   ShoppingCart,
   ListChecks,
   Lightbulb,
+  AlertTriangle,
+  MessageSquare,
 } from "lucide-react";
 import type { RecipeResponse, RecipeFormData } from "@/lib/recipe-schema";
 import RecipeChat from "./recipe-chat";
 import { track, ANALYTICS_EVENTS } from "@/lib/analytics";
+
+// 30 days in milliseconds
+const THIRTY_DAYS_MS = 30 * 24 * 60 * 60 * 1000;
 
 interface RecipeResultProps {
   recipe: RecipeResponse;
   inputs: RecipeFormData;
   onBack: () => void;
   isAuthenticated: boolean;
+  sessionId?: string;
   onRecipeUpdate?: (newRecipe: RecipeResponse) => void;
 }
 
@@ -34,14 +41,25 @@ export default function RecipeResult({
   inputs,
   onBack,
   isAuthenticated,
+  sessionId,
   onRecipeUpdate,
 }: RecipeResultProps) {
   const [isSaving, setIsSaving] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [savedAt, setSavedAt] = useState<number | null>(null);
   const [isUpdatingRecipe, setIsUpdatingRecipe] = useState(false);
   const [checkedItems, setCheckedItems] = useState<Set<string>>(new Set());
 
+  // Calculate days until expiration for anonymous users
+  const getDaysUntilExpiration = () => {
+    if (!savedAt || isAuthenticated) return null;
+    const expiresAt = savedAt + THIRTY_DAYS_MS;
+    const daysLeft = Math.ceil((expiresAt - Date.now()) / (24 * 60 * 60 * 1000));
+    return Math.max(0, daysLeft);
+  };
+
   const saveRecipe = useMutation(api.recipes.saveRecipe);
+  const saveAnonymousRecipe = useMutation(api.recipes.saveAnonymousRecipe);
 
   const toggleChecked = (item: string) => {
     const newChecked = new Set(checkedItems);
@@ -54,8 +72,9 @@ export default function RecipeResult({
   };
 
   const handleSave = async () => {
-    if (!isAuthenticated) {
-      toast.error("Please sign in to save recipes");
+    // Either authenticated or have a sessionId
+    if (!isAuthenticated && !sessionId) {
+      toast.error("Unable to save recipe");
       return;
     }
 
@@ -67,7 +86,7 @@ export default function RecipeResult({
         ...(inputs.ingredientsToBuy || []),
       ];
 
-      await saveRecipe({
+      const recipeData = {
         title: recipe.title,
         description: recipe.summary,
         inputs: {
@@ -98,11 +117,28 @@ export default function RecipeResult({
           substitute: sub.swap_options.join(", "),
         })),
         tips: recipe.diet_notes,
-      });
+      };
+
+      if (isAuthenticated) {
+        await saveRecipe(recipeData);
+      } else if (sessionId) {
+        await saveAnonymousRecipe({ ...recipeData, sessionId });
+        setSavedAt(Date.now());
+      }
 
       setIsSaved(true);
-      track(ANALYTICS_EVENTS.RECIPE_SAVED, { title: recipe.title });
-      toast.success("Recipe saved!");
+      track(ANALYTICS_EVENTS.RECIPE_SAVED, { title: recipe.title, isAuthenticated });
+
+      if (isAuthenticated) {
+        toast.success("Recipe saved!");
+      } else {
+        toast.success("Recipe saved! Sign up to keep it forever.", {
+          action: {
+            label: "Sign up",
+            onClick: () => window.location.href = "/sign-up",
+          },
+        });
+      }
     } catch (error) {
       track(ANALYTICS_EVENTS.RECIPE_SAVE_FAILED);
       toast.error("Failed to save recipe");
@@ -148,7 +184,7 @@ export default function RecipeResult({
 
           <Button
             onClick={handleSave}
-            disabled={isSaving || isSaved || !isAuthenticated}
+            disabled={isSaving || isSaved || (!isAuthenticated && !sessionId)}
             size="sm"
           >
             {isSaving ? (
@@ -368,7 +404,24 @@ export default function RecipeResult({
           </div>
         )}
 
-        {/* Recipe Chat - only show if not saved yet */}
+        {/* Expiration warning for anonymous users who saved */}
+        {isSaved && !isAuthenticated && savedAt && (
+          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900 rounded-lg p-4 mt-6">
+            <div className="flex items-start gap-3">
+              <AlertTriangle className="h-5 w-5 text-amber-600 dark:text-amber-500 shrink-0 mt-0.5" />
+              <div>
+                <p className="font-medium text-amber-900 dark:text-amber-200">
+                  This recipe expires in {getDaysUntilExpiration()} day{getDaysUntilExpiration() !== 1 ? "s" : ""}
+                </p>
+                <p className="text-sm text-amber-700 dark:text-amber-300 mt-1">
+                  <Link href="/sign-up" className="underline font-medium">Sign up</Link> to keep it forever and unlock more features.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Recipe Chat - only show if not saved yet and authenticated */}
         {!isSaved && isAuthenticated && onRecipeUpdate && (
           <div className="mt-6">
             <RecipeChat
@@ -380,9 +433,29 @@ export default function RecipeResult({
           </div>
         )}
 
+        {/* Chat sign-up prompt for anonymous users */}
+        {!isAuthenticated && !isSaved && (
+          <div className="bg-muted/50 rounded-lg border p-6 mt-6">
+            <div className="flex items-start gap-3">
+              <MessageSquare className="h-5 w-5 text-muted-foreground shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-medium">Chat with your recipe</h3>
+                <p className="text-sm text-muted-foreground mt-1">
+                  <Link href="/sign-up" className="text-primary underline">Sign up</Link> to chat with your recipe and get cooking tips, substitution ideas, and step-by-step guidance.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Bottom Save Button */}
-        {!isSaved && isAuthenticated && (
+        {!isSaved && (isAuthenticated || sessionId) && (
           <div className="sticky bottom-4 mt-6">
+            {!isAuthenticated && (
+              <p className="text-sm text-muted-foreground text-center mb-3">
+                <Link href="/sign-up" className="text-primary underline">Sign up</Link> to keep your recipes forever
+              </p>
+            )}
             <Button
               onClick={handleSave}
               disabled={isSaving}
@@ -394,7 +467,7 @@ export default function RecipeResult({
               ) : (
                 <Save className="h-5 w-5 mr-2" />
               )}
-              Save to My Recipes
+              {isAuthenticated ? "Save to My Recipes" : "Save Recipe"}
             </Button>
           </div>
         )}

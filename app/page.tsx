@@ -78,8 +78,8 @@ function HeroSection({ isLoggedIn }: { isLoggedIn: boolean }) {
             </Link>
           ) : (
             <>
-              <Link href="/sign-up">
-                <Button size="lg">Get Started Free</Button>
+              <Link href="/generate">
+                <Button size="lg">Get Started</Button>
               </Link>
               <Link href="/marketplace">
                 <Button size="lg" variant="outline">

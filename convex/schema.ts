@@ -4,9 +4,18 @@ import { v } from "convex/values";
 export default defineSchema({
   // Recipes table - stores generated recipes
   recipes: defineTable({
+    // Owner - either authenticated userId or empty string for anonymous
     userId: v.string(),
+
+    // Anonymous session tracking
+    sessionId: v.optional(v.string()), // UUID from localStorage for anonymous users
+    claimedAt: v.optional(v.number()), // When recipe was claimed by authenticated user
+    expiresAt: v.optional(v.number()), // 30 days from creation (for anonymous recipes only)
+
+    // Recipe metadata
     title: v.string(),
     description: v.string(),
+    isManual: v.optional(v.boolean()), // true if manually created, false/undefined if AI-generated
 
     // Input constraints used to generate
     inputs: v.object({
@@ -56,7 +65,31 @@ export default defineSchema({
     publishedAt: v.optional(v.number()),
   })
     .index("by_user", ["userId"])
-    .index("by_published", ["isPublished"]),
+    .index("by_session", ["sessionId"])
+    .index("by_published", ["isPublished"])
+    .index("by_expires", ["expiresAt"]),
+
+  // Usage credits for authenticated users
+  usageCredits: defineTable({
+    userId: v.string(),
+    aiGenerationsUsed: v.number(), // Count of AI generations used
+    aiGenerationsLimit: v.number(), // Current limit (3 for free tier)
+    manualRecipesCount: v.number(), // For stats only (no limit)
+    lastGenerationAt: v.optional(v.number()),
+    // Stripe integration (future)
+    stripeCustomerId: v.optional(v.string()),
+    creditsLastPurchasedAt: v.optional(v.number()),
+  }).index("by_user", ["userId"]),
+
+  // Usage tracking for anonymous users (before sign-up)
+  anonymousUsage: defineTable({
+    sessionId: v.string(), // UUID from localStorage
+    aiGenerationsUsed: v.number(), // Max 1 for anonymous
+    createdAt: v.number(),
+    expiresAt: v.number(), // 30 days from creation
+  })
+    .index("by_session", ["sessionId"])
+    .index("by_expires", ["expiresAt"]),
 
   // Recipe idea sessions - stores exploration sessions with multiple ideas
   recipeIdeaSessions: defineTable({
@@ -71,6 +104,8 @@ export default defineSchema({
       additionalIngredients: v.optional(v.array(v.string())),
       timeLimit: v.optional(v.number()),
     }),
+    // Track how many full recipes have been expanded (first one is free)
+    fullRecipesGenerated: v.optional(v.number()),
     createdAt: v.number(),
     updatedAt: v.number(),
   }).index("by_user", ["userId"]),

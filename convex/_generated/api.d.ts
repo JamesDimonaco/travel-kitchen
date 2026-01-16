@@ -9,9 +9,12 @@
  */
 
 import type * as auth from "../auth.js";
+import type * as cleanup from "../cleanup.js";
+import type * as crons from "../crons.js";
 import type * as http from "../http.js";
 import type * as recipeIdeas from "../recipeIdeas.js";
 import type * as recipes from "../recipes.js";
+import type * as usage from "../usage.js";
 
 import type {
   ApiFromModules,
@@ -21,9 +24,12 @@ import type {
 
 declare const fullApi: ApiFromModules<{
   auth: typeof auth;
+  cleanup: typeof cleanup;
+  crons: typeof crons;
   http: typeof http;
   recipeIdeas: typeof recipeIdeas;
   recipes: typeof recipes;
+  usage: typeof usage;
 }>;
 
 /**

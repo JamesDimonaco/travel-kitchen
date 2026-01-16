@@ -4,6 +4,8 @@ import { isAuthenticated } from "@/lib/auth-server";
 import { z } from "zod";
 import { EQUIPMENT_OPTIONS } from "@/lib/recipe-schema";
 import { trackLLMEvent, trackServerError } from "@/lib/posthog-server";
+import { fetchQuery } from "convex/nextjs";
+import { api } from "@/convex/_generated/api";
 
 const MODEL = "gpt-4o-mini";
 const ENDPOINT = "/api/ai/expand-idea";
@@ -62,6 +64,19 @@ export async function POST(req: Request) {
       return Response.json(
         { error: "You must be signed in" },
         { status: 401 }
+      );
+    }
+
+    // Check usage limits BEFORE making expensive AI call
+    const usageCheck = await fetchQuery(api.usage.canGenerate, {});
+
+    if (!usageCheck.canGenerate) {
+      return Response.json(
+        {
+          error: usageCheck.reason || "You've reached your generation limit",
+          code: "LIMIT_REACHED",
+        },
+        { status: 402 }
       );
     }
 

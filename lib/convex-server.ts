@@ -84,3 +84,54 @@ export async function listPublishedRecipes(
   );
   return recipes || [];
 }
+
+// Server-side mutation helper for API routes
+export async function convexMutation<T>(
+  path: string,
+  args: Record<string, unknown> = {}
+): Promise<T | null> {
+  if (!CONVEX_URL) {
+    console.error("CONVEX_URL not configured");
+    return null;
+  }
+
+  try {
+    const response = await fetch(`${CONVEX_URL}/api/mutation`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ path, args }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Convex mutation failed: ${response.status}`, errorText);
+      return null;
+    }
+
+    const data = await response.json();
+    return data.value as T;
+  } catch (error) {
+    console.error("Convex mutation error:", error);
+    return null;
+  }
+}
+
+// Usage check types
+export interface CanGenerateResult {
+  canGenerate: boolean;
+  reason: string | null;
+  remaining: number;
+  isAuthenticated: boolean;
+}
+
+// Check if a user/session can generate
+export async function checkCanGenerate(
+  sessionId?: string
+): Promise<CanGenerateResult> {
+  const result = await convexQuery<CanGenerateResult>(
+    "usage:canGenerate",
+    { sessionId },
+    { revalidate: 0 } // Don't cache usage checks
+  );
+  return result || { canGenerate: false, reason: "Unable to check usage", remaining: 0, isAuthenticated: false };
+}
